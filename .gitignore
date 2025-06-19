@@ -4,3 +4,6 @@ __pycache__/
 .vscode/
 venv/
 generated-text.txt
+
+MODELS/*
+RESULTS/*

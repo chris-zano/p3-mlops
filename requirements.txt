@@ -7,3 +7,5 @@ numpy
 fastapi
 uvicorn
 pylint
+datasets
+accelerate
