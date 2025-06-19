@@ -1,0 +1,33 @@
+name: MLOps CI Python3
+on:
+    push:
+        branches:
+            - main
+            - develop
+    pull_request:
+        branches:
+            - main
+            - develop
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+
+            - name: Set up Python
+              uses: actions/setup-python@v2
+              with:
+                python-version: '3.12'
+
+            - name: Install dependencies
+              run: |
+                make install
+
+            - name: Source venv
+              run: |
+                source venv/bin/activate
+            
+            - name: Run tests
+              run: |
+                make test
