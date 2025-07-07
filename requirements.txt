@@ -1,6 +1,6 @@
-torch~=2.7.1
-transformers~=4.52.4
-sentence-transformers~=4.1.0
+torch
+transformers
+sentence-transformers
 scikit-learn
 pandas
 numpy
@@ -9,3 +9,4 @@ uvicorn
 pylint
 datasets
 accelerate
+pydantic

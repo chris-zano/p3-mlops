@@ -7,3 +7,8 @@ generated-text.txt
 
 MODELS/*
 RESULTS/*
+
+**/*.tfvars
+**/*.lock.*
+**/.terraform
+**/plans/

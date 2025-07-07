@@ -11,8 +11,8 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
 MODEL_NAME = "distilbert-base-uncased"
 DATASET_NAME = "imdb"
-OUTPUT_DIR = "../RESULTS"
-MODEL_SAVE_PATH = "../MODELS"
+OUTPUT_DIR = "RESULTS"
+MODEL_SAVE_PATH = "MODELS"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(MODEL_SAVE_PATH, exist_ok=True)
@@ -84,11 +84,10 @@ if __name__ == "__main__":
     tokenized_datasets = tokenized_datasets.rename_column("label", "labels")
     tokenized_datasets.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
 
-    # Create a small validation set from the training data for faster feedback during training
-    # For larger projects, you might want a separate validation split or explicit test split
-    # from raw_datasets. We'll use the 'test' split from imdb for final evaluation later.
-    train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(22500)) # Use most of train for actual training
-    eval_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(22500, 25000)) # Use a small part of train for eval
+    # Split the dataset into training and evaluation sets
+    # This uses the first 24990 examples for training and the last 10 examples for evaluation
+    train_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(24990, 25000))
+    eval_dataset = tokenized_datasets["train"].shuffle(seed=42).select(range(24990, 25000))
 
     print(f"Training dataset size: {len(train_dataset)}")
     print(f"Evaluation dataset size: {len(eval_dataset)}")
