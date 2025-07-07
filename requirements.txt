@@ -10,3 +10,4 @@ pylint
 datasets
 accelerate
 pydantic
+mlflow

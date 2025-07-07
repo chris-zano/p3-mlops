@@ -89,3 +89,12 @@ module "mlflow_instance" {
     "Name" = "mlflow-instance"
   }
 }
+
+resource "local_file" "apply_outputs" {
+  filename = "outputs.txt"
+
+  content = <<EOT
+  "mlflow_instance_public_ip": "${module.mlflow_instance.public_ip}"
+  "mlflow_s3_bucket_name": "${module.mlflow_s3_bucket.bucket_name}"
+  EOT
+}
