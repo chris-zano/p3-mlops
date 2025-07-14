@@ -45,7 +45,7 @@ module "mlflow_security_groups" {
   ]
 
   tags = {
-    Name        = "ec2-sg"
+    Name        = "mlflow-ec2-sg"
     Environment = var.environment
   }
 }

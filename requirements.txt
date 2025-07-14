@@ -11,3 +11,6 @@ datasets
 accelerate
 pydantic
 mlflow
+python-dotenv
+pandas
+kagglehub
