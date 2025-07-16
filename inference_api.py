@@ -1,155 +1,148 @@
+import os
+import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import uvicorn
-from sentence_transformers import SentenceTransformer, util # New library for embeddings
+import mlflow
+import mlflow.transformers
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
-import os
 
-# --- Model Loading Configuration ---
-# We'll use a pre-trained Sentence Transformer model for generating embeddings.
-# This model is different from your sentiment classification model.
-SENTENCE_TRANSFORMER_MODEL_NAME = "all-MiniLM-L6-v2"
+# Load environment variables
+# from dotenv import load_dotenv
+# load_dotenv()
 
-# --- Global Variables for Models and Data ---
-embedding_model = None
-device = None
+# --- Configuration ---
+# MLflow Tracking Server URI (from .env or direct IP)
+# MFLOW_SERVER_IP = os.getenv('MFLOW_SERVER_IP')
+MFLOW_SERVER_IP = "34.251.243.175"
+if MFLOW_SERVER_IP is None:
+    raise ValueError("MFLOW_SERVER_IP environment variable is not set. Please set it to your MLflow server's public IP or ensure it's in your .env file.")
+MLFLOW_TRACKING_URI = f"http://{MFLOW_SERVER_IP}/"
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
-# Dummy movie database for demonstration
-# In a real application, this would come from a database (e.g., Firestore, SQL, etc.)
-# and would likely be much larger.
-MOVIE_DATABASE = [
-    {"title": "Interstellar", "description": "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.", "genre": "Sci-Fi"},
-    {"title": "Inception", "description": "A thief who steals information by entering people's dreams is given the inverse task of planting an idea into the mind of a C.E.O.", "genre": "Sci-Fi, Action"},
-    {"title": "The Shawshank Redemption", "description": "Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.", "genre": "Drama"},
-    {"title": "Pulp Fiction", "description": "The lives of two mob hitmen, a boxer, a gangster's wife, and a pair of diner bandits intertwine in four tales of violence and redemption.", "genre": "Crime, Drama"},
-    {"title": "Forrest Gump", "description": "The presidencies of Kennedy and Johnson, the Vietnam War, the Watergate scandal and other historical events unfold from the perspective of an Alabama man with an IQ of 75, whose only desire is to be reunited with his childhood sweetheart.", "genre": "Drama, Romance"},
-    {"title": "The Matrix", "description": "A computer hacker learns from mysterious rebels about the true nature of his reality and his role in the war against its controllers.", "genre": "Sci-Fi, Action"},
-    {"title": "Spirited Away", "description": "During her family's move to the suburbs, a sullen 10-year-old girl wanders into a world ruled by gods, witches, and spirits, and where humans are changed into beasts.", "genre": "Animation, Fantasy"},
-    {"title": "Eternal Sunshine of the Spotless Mind", "description": "When their relationship turns sour, a couple undergoes a medical procedure to have each other erased from their memories.", "genre": "Drama, Romance, Sci-Fi"},
-    {"title": "Blade Runner 2049", "description": "A young blade runner's discovery of a long-buried secret leads him to track down former blade runner Rick Deckard, who's been missing for 30 years.", "genre": "Sci-Fi, Thriller"},
-    {"title": "Arrival", "description": "A linguist is recruited by the military to assist in translating alien communications.", "genre": "Sci-Fi, Drama"}
-]
+# Registered Model Name (must match what you used in train.py)
+REGISTERED_MODEL_NAME = "MovieTitleGeneratorFlanT5"
 
-# Store pre-computed embeddings for the movie database
-movie_embeddings = None
+# Model Version to load. You can specify a number (e.g., "1", "2")
+# or a stage (e.g., "Production", "Staging").
+# For initial deployment, "latest" will load the most recently registered version.
+MODEL_VERSION_OR_STAGE = "latest"
 
-# --- FastAPI App Setup ---
+# --- Global Model and Tokenizer Variables ---
+model = None
+tokenizer = None
+
+# --- FastAPI Application Setup ---
 app = FastAPI(
-    title="Movie Suggestion API",
-    description="A FastAPI application to suggest movies based on textual descriptions using semantic search.",
-    version="0.0.1",
+    title="Movie Title Generation API",
+    description="API for suggesting movie titles based on descriptions using a fine-tuned Flan-T5 model.",
+    version="0.1.0",
 )
 
-# --- Pydantic Model for Input ---
-class MovieDescriptionInput(BaseModel):
+# --- Request Body Model ---
+class InferenceRequest(BaseModel):
     """
-    Defines the expected input structure for the movie suggestion endpoint.
-    The model expects a single string describing the desired movie.
+    Defines the structure of the request body for movie title generation.
     """
     description: str
-    top_n: int = 5 # Number of top suggestions to return, default to 5
-
-# --- Application Startup Event ---
-@app.on_event("startup")
-async def load_models_and_compute_embeddings():
-    """
-    Loads the Sentence Transformer model and computes embeddings for the movie database
-    when the FastAPI application starts.
-    """
-    global embedding_model, device, movie_embeddings
-
-    print(f"Loading Sentence Transformer model: {SENTENCE_TRANSFORMER_MODEL_NAME}...")
-    try:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"Using device: {device}")
-
-        embedding_model = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL_NAME, device=device)
-        embedding_model.eval() # Set the model to evaluation mode
-        print("Sentence Transformer model loaded successfully.")
-
-        # Compute embeddings for all movie descriptions in the database
-        print("Computing embeddings for the movie database...")
-        movie_descriptions = [movie["description"] for movie in MOVIE_DATABASE]
-        # Encode in batches for efficiency, if MOVIE_DATABASE were large
-        movie_embeddings = embedding_model.encode(movie_descriptions, convert_to_tensor=True, show_progress_bar=False)
-        print(f"Computed {len(movie_embeddings)} movie embeddings.")
-
-    except Exception as e:
-        print(f"Failed to load Sentence Transformer model or compute embeddings: {e}")
-        embedding_model = None
-        movie_embeddings = None
-        # In a production setting, you might want to log this error more robustly
-        # and potentially prevent the app from starting if this is critical.
-
 
 # --- API Endpoints ---
-@app.get("/")
-async def read_root():
-    """
-    Returns a simple welcome message for the API.
-    """
-    return {"message": "Welcome to the Movie Suggestion API! Use /suggest_movies for recommendations."}
 
-@app.get("/health")
-async def health_check():
+@app.on_event("startup")
+async def load_model_on_startup():
     """
-    Health check endpoint to verify if the embedding model and movie embeddings are loaded.
+    Loads the MLflow model and tokenizer when the FastAPI application starts.
+    This ensures the model is loaded only once and is ready for inference requests.
     """
-    if embedding_model is not None and movie_embeddings is not None:
-        return {"status": "ok", "embedding_model_loaded": True, "device": device, "movies_indexed": len(MOVIE_DATABASE)}
-    else:
-        raise HTTPException(status_code=503, detail="Service Unavailable: Embedding model or movie database not ready.")
+    global model, tokenizer
+    print(f"Loading model '{REGISTERED_MODEL_NAME}' version/stage '{MODEL_VERSION_OR_STAGE}' from MLflow Registry...")
+    try:
+        # Construct the MLflow model URI
+        model_uri = f"models:/{REGISTERED_MODEL_NAME}/{MODEL_VERSION_OR_STAGE}"
 
-@app.post("/suggest_movies")
-async def suggest_movies(input_data: MovieDescriptionInput):
+        # Load the model using mlflow.transformers.load_model
+        # This will download the model artifacts from S3 to a local cache
+        # and load them into memory.
+        loaded_model_components = mlflow.transformers.load_model(model_uri)
+        
+        # mlflow.transformers.load_model returns a dictionary with 'model' and 'tokenizer'
+        model = loaded_model_components["model"]
+        tokenizer = loaded_model_components["tokenizer"]
+
+        # Set model to evaluation mode
+        model.eval()
+
+        # Move model to GPU if available
+        if torch.cuda.is_available():
+            model.to("cuda")
+            print("Model moved to GPU.")
+        else:
+            print("No GPU found, model will run on CPU.")
+
+        print("Model and tokenizer loaded successfully!")
+    except Exception as e:
+        print(f"Failed to load model: {e}")
+        raise RuntimeError(f"Could not load model on startup: {e}")
+
+@app.post("/predict")
+async def predict_movie_title(request: InferenceRequest):
     """
-    Suggests movies based on a textual description using semantic similarity.
+    Generates a movie title based on the provided description.
 
     Args:
-        input_data (MovieDescriptionInput): A Pydantic model containing the 'description'
-                                            string and 'top_n' for the number of suggestions.
+        request (InferenceRequest): A Pydantic model containing the movie description.
 
     Returns:
-        dict: A dictionary containing the suggested movies, each with title, description,
-              genre, and similarity score.
+        dict: A dictionary containing the generated movie title.
     """
-    if embedding_model is None or movie_embeddings is None:
-        raise HTTPException(status_code=503, detail="Movie suggestion service not ready. Please check API health.")
+    if model is None or tokenizer is None:
+        raise HTTPException(status_code=503, detail="Model not loaded yet. Please try again in a moment.")
+
+    description = request.description
+    print(f"Received request for description: '{description}'")
+
+    # Prepend the task prefix as used during training
+    input_text = f"generate title: {description}"
 
     try:
-        # 1. Encode the user's input description
-        # Move the query embedding to the same device as the movie embeddings
-        query_embedding = embedding_model.encode(input_data.description, convert_to_tensor=True).to(device)
+        # Tokenize the input description
+        inputs = tokenizer(
+            input_text,
+            return_tensors="pt",
+            max_length=512,
+            truncation=True
+        )
 
-        # 2. Compute cosine similarity between the query and all movie embeddings
-        # util.cos_sim returns a tensor of similarity scores
-        cosine_scores = util.cos_sim(query_embedding, movie_embeddings)[0] # Get the scores for the single query
+        # Move inputs to GPU if model is on GPU
+        if torch.cuda.is_available():
+            inputs = {k: v.to("cuda") for k, v in inputs.items()}
 
-        # 3. Get the top N most similar movies
-        # torch.topk returns values (scores) and indices
-        top_results = torch.topk(cosine_scores, k=min(input_data.top_n, len(MOVIE_DATABASE)))
+        # Generate the title
+        # You can adjust generation parameters like num_beams, do_sample, top_k, top_p, etc.
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=128, # Max length for the generated title
+            num_beams=5,       # Use beam search for better quality
+            early_stopping=True
+        )
 
-        suggested_movies = []
-        for score, idx in zip(top_results.values, top_results.indices):
-            movie = MOVIE_DATABASE[idx.item()]
-            suggested_movies.append({
-                "title": movie["title"],
-                "description": movie["description"],
-                "genre": movie["genre"],
-                "similarity_score": score.item()
-            })
+        # Decode the generated tokens back to text
+        generated_title = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        print(f"Generated title: '{generated_title}'")
 
-        return {
-            "query_description": input_data.description,
-            "suggestions": suggested_movies
-        }
+        return {"suggested_title": generated_title}
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Movie suggestion failed: {e}. "
-                                                     "Ensure input is valid text.")
+        print(f"Error during prediction: {e}")
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {e}")
 
-# --- Uvicorn Run ---
+# --- Main entry point for Uvicorn (for local testing/development) ---
 if __name__ == "__main__":
+    # To run this API locally:
+    # 1. Ensure your MLflow server is running and accessible.
+    # 2. Set the MFLOW_SERVER_IP environment variable (or in your .env file).
+    # 3. Run: python api/inference_api.py
+    #    Or: uvicorn api.inference_api:app --host 0.0.0.0 --port 8000 --reload
+    # Access the API at http://localhost:8000/docs for Swagger UI
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

@@ -22,8 +22,7 @@ DATASET_NAME = "tmdb/tmdb-movie-metadata" # Updated to the Kaggle dataset ID
 OUTPUT_DIR = "RESULTS"
 MODEL_SAVE_PATH = "MODELS"
 
-# MFLOW_SERVER_IP = 3.249.41.251os.getenv('MFLOW_SERVER_IP')
-MFLOW_SERVER_IP = "3.249.41.251"
+MFLOW_SERVER_IP = "34.251.243.175"
 if MFLOW_SERVER_IP is None:
     raise ValueError("MFLOW_SERVER_IP environment variable is not set. Please set it to your MLflow server's public IP or ensure it's in your .env file.")
 
@@ -217,9 +216,11 @@ if __name__ == "__main__":
     # Log the Hugging Face model to MLflow
     print("Logging model to MLflow...")
     mlflow.transformers.log_model(
-        transformers_model=model,
-        artifact_path="huggingface-model",
+        transformers_model=MODEL_SAVE_PATH,
+        name="huggingface-model",
         tokenizer=tokenizer,
+        task="text2text-generation",
+        registered_model_name="MovieTitleGeneratorFlanT5"
     )
     print("Model logged to MLflow successfully.")
 
