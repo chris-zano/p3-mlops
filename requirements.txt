@@ -18,3 +18,5 @@ torchvision
 boto3
 pyinstaller
 nuitka
+evaluate
+rouge_score

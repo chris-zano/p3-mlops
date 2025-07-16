@@ -4,4 +4,4 @@ WORKDIR /app
 
 COPY dist/inference_api .
 
-ENTRYPOINT ["python", "scripts/train.py"]
+ENTRYPOINT ["./dist/inference_api"]

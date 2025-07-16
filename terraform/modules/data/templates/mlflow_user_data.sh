@@ -29,7 +29,7 @@ Type=simple
 User=mlflow
 WorkingDirectory=/opt/mlflow
 Environment="MLFLOW_TRACKING_URI=http://localhost:5000"
-ExecStart=/opt/mlflow/venv/bin/mlflow server --host 127.0.0.1 --port 5000 --default-artifact-root s3://mlflow-test-23
+ExecStart=/opt/mlflow/venv/bin/mlflow server --host 127.0.0.1 --port 5000 --default-artifact-root s3://mlflow-source-bucket-niico-phase3
 Restart=always
 
 [Install]
