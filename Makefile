@@ -1,24 +1,17 @@
 .PHONY: install lint run clean
 
-# Define python
 PYTHON = python3
-
-# Define the virtual environment directory
 VENV_DIR = venv
-
-# Define application entrypoint
 APP_FILE = inference_api
 
-# Create and activate a virtual environment, then install dependencies
 install:
-	@echo " Creating and activating virtual environment"
+	@echo "Creating and activating virtual environment"
 	$(PYTHON) -m venv $(VENV_DIR)
 	@echo "Installing dependencies from requirements.txt file"
 	./$(VENV_DIR)/bin/pip install -r requirements.txt
 	@echo "Installation complete. Activate the virtual environment using the command below."
 	@echo "source $(VENV_DIR)/bin/activate"
 
-# Run linting with pylint
 lint:
 	@echo "Running pylint"
 	./$(VENV_DIR)/bin/pylint --rcfile=.pylintrc $(APP_FILE) scripts/train.py
@@ -46,3 +39,11 @@ clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 	@echo "--- Clean up complete ---"
+
+compile:
+	@echo "Compiling python script into a standalone binary"
+	pyinstaller --onefile "$(APP_FILE).py"
+
+clean-compile:
+	@echo "Building python script into a standalone binary"
+	nuitka --standalone --onefile "$(APP_FILE).py"

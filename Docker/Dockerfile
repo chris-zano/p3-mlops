@@ -2,10 +2,6 @@ FROM python:3.10
 
 WORKDIR /app
 
-COPY scripts/train.py .
-
-COPY requirements.txt .
-
-RUN pip install -r requirements.txt
+COPY dist/inference_api .
 
 ENTRYPOINT ["python", "scripts/train.py"]

@@ -16,3 +16,5 @@ pandas
 kagglehub
 torchvision
 boto3
+pyinstaller
+nuitka
