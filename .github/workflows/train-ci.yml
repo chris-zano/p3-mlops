@@ -61,11 +61,11 @@ jobs:
       - name: Build and Push Docker Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: mlops/inference-api
+          ECR_REPOSITORY: mlops/train
           IMAGE_TAG: v-${{ github.sha }}
         run: |
           IMAGE_TAG="v-$(echo ${{ github.sha }} | cut -c1-7)"
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f Docker/Dockerfile .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f Docker/TrainScript_Dockerfile .
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest 
 
 

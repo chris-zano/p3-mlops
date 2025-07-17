@@ -50,6 +50,39 @@ module "mlflow_security_groups" {
   }
 }
 
+module "inference_api_security_groups" {
+  source = "./modules/security_groups"
+  providers = {
+    aws = aws.primary
+  }
+  name        = "inference_api_sg"
+  vpc_id      = module.project_vpc.vpc_id
+  description = "Security group for Inference ECS Service"
+
+  ingress_rules = [
+    {
+      from_port   = 80
+      to_port     = 80
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  ]
+
+  egress_rules = [
+    {
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  ]
+
+  tags = {
+    Name        = "mlflow-api-sg"
+    Environment = var.environment
+  }
+}
+
 module "mlflow_s3_bucket" {
   source = "./modules/s3"
   providers = {
@@ -96,9 +129,6 @@ module "inference_api_repo" {
     aws = aws.primary
   }
   repository_name     = var.inference_api_repo_name
-  images_to_keep      = var.inference_api_images_to_keep
-  account_id          = var.account_id
-  ecr_access_role_arn = module.iam_resources.ecr_access_iam_role
 }
 
 module "train_script_repo" {
@@ -107,9 +137,6 @@ module "train_script_repo" {
     aws = aws.primary
   }
   repository_name     = var.train_script_repo_name
-  images_to_keep      = var.train_script_images_to_keep
-  account_id          = var.account_id
-  ecr_access_role_arn = module.iam_resources.ecr_access_iam_role
 }
 
 module "evaluate_script_repo" {
@@ -118,9 +145,37 @@ module "evaluate_script_repo" {
     aws = aws.primary
   }
   repository_name     = var.evaluate_script_repo_name
-  images_to_keep      = var.evaluate_script_images_to_keep
-  account_id          = var.account_id
-  ecr_access_role_arn = module.iam_resources.ecr_access_iam_role
+}
+
+
+module "inference_api_ecs" {
+  source = "./modules/ecs"
+  providers = {
+    aws = aws.primary
+  }
+  ecs_cluster_name = "inference_api_cluster"
+  container_insights_enabled = "enabled"
+  
+  ecs_td_family = "inference"
+  assign_public_ip = true
+  container_port = 80
+  cpu_size = 1024
+  desired_count = 1
+  ecs_service_name = "inference-api"
+  ecs_service_sg = [module.inference_api_security_groups.sg_id]
+  ecs_service_subnets = module.project_vpc.public_subnet_ids
+  host_port = 80
+  image_uri = "084129280516.dkr.ecr.eu-west-1.amazonaws.com/mlops/infer:latest"
+  mem_size = 4096
+  task_name = "inference-api"
+  aws_region = "eu-west-1"
+  log_group_name = "inference-api"
+  environment_variables = [
+    {
+      name  = "MFLOW_SERVER_IP"
+      value = module.mlflow_instance.public_ip
+    },
+  ]
 }
 
 resource "local_file" "apply_outputs" {
