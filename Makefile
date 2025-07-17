@@ -31,7 +31,7 @@ train:
 
 evaluate:
 	@echo "Evaluating the trained model"
-	./$(VENV_DIR)/bin/python scripts/evaluate.py
+	./$(VENV_DIR)/bin/python scripts/evaluate_model.py
 
 clean:
 	@echo "Cleaning up virtual environment and __pycache__ directories"
