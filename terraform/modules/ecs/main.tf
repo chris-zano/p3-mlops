@@ -67,6 +67,12 @@ resource "aws_ecs_cluster_capacity_providers" "this" {
   }
 }
 
+
+resource "aws_cloudwatch_log_group" "ecs_logs" {
+  name              = var.log_group_name 
+  retention_in_days = 1
+}
+
 resource "aws_ecs_task_definition" "this" {
   family = var.ecs_td_family
   requires_compatibilities = ["FARGATE"]
@@ -111,3 +117,4 @@ resource "aws_ecs_service" "this" {
     security_groups = var.ecs_service_sg
   }  
 }
+
