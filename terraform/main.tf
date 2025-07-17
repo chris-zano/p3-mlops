@@ -1,14 +1,14 @@
 
 module "project_vpc" {
- source = "./modules/vpc"
- availability_zones =  var.availability_zones
- vpc_cidr = var.vpc_cidr
- public_subnet_cidrs = var.public_subnet_cidrs
- private_subnet_cidrs = var.private_subnet_cidrs
+  source               = "./modules/vpc"
+  availability_zones   = var.availability_zones
+  vpc_cidr             = var.vpc_cidr
+  public_subnet_cidrs  = var.public_subnet_cidrs
+  private_subnet_cidrs = var.private_subnet_cidrs
 
- providers = {
-   aws = aws.primary
- }
+  providers = {
+    aws = aws.primary
+  }
 }
 
 module "mlflow_security_groups" {
@@ -52,42 +52,75 @@ module "mlflow_security_groups" {
 
 module "mlflow_s3_bucket" {
   source = "./modules/s3"
-   providers = {
-   aws = aws.primary
- }
+  providers = {
+    aws = aws.primary
+  }
   source_bucket_name = "mlflow-source-bucket-niico-phase3"
 }
 
 module "iam_resources" {
   source = "./modules/iam"
-   providers = {
-   aws = aws.primary
- }
-  mlflow_buckets_arns = [ module.mlflow_s3_bucket.s3_bucket_arn ]
+  providers = {
+    aws = aws.primary
+  }
+  mlflow_buckets_arns = [module.mlflow_s3_bucket.s3_bucket_arn]
 }
 
 module "datasets" {
-   providers = {
-   aws = aws.primary
- }
+  providers = {
+    aws = aws.primary
+  }
   source = "./modules/data"
 }
 
 module "mlflow_instance" {
   source = "./modules/ec2"
-   providers = {
-   aws = aws.primary
- }
-  ami_id = module.datasets.ubuntu_ami_id
-  instance_type = "t3.medium"
-  key_name = "mlops"
-  security_group_ids = [module.mlflow_security_groups.sg_id]
-  subnet_id = module.project_vpc.public_subnet_ids[0]
-  user_data = module.datasets.mlflow_user_data
-  iam_instance_profile  = module.iam_resources.mlflow_instance_profile_name 
+  providers = {
+    aws = aws.primary
+  }
+  ami_id               = module.datasets.ubuntu_ami_id
+  instance_type        = "t3.medium"
+  key_name             = "mlops"
+  security_group_ids   = [module.mlflow_security_groups.sg_id]
+  subnet_id            = module.project_vpc.public_subnet_ids[0]
+  user_data            = module.datasets.mlflow_user_data
+  iam_instance_profile = module.iam_resources.mlflow_instance_profile_name
   tags = {
     "Name" = "mlflow-instance"
   }
+}
+
+module "inference_api_repo" {
+  source              = "./modules/ecr"
+  providers = {
+    aws = aws.primary
+  }
+  repository_name     = var.inference_api_repo_name
+  images_to_keep      = var.inference_api_images_to_keep
+  account_id          = var.account_id
+  ecr_access_role_arn = module.iam_resources.ecr_access_iam_role
+}
+
+module "train_script_repo" {
+  source              = "./modules/ecr"
+  providers = {
+    aws = aws.primary
+  }
+  repository_name     = var.train_script_repo_name
+  images_to_keep      = var.train_script_images_to_keep
+  account_id          = var.account_id
+  ecr_access_role_arn = module.iam_resources.ecr_access_iam_role
+}
+
+module "evaluate_script_repo" {
+  source              = "./modules/ecr"
+  providers = {
+    aws = aws.primary
+  }
+  repository_name     = var.evaluate_script_repo_name
+  images_to_keep      = var.evaluate_script_images_to_keep
+  account_id          = var.account_id
+  ecr_access_role_arn = module.iam_resources.ecr_access_iam_role
 }
 
 resource "local_file" "apply_outputs" {

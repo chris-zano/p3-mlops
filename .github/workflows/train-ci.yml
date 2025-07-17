@@ -1,15 +1,13 @@
-name: MLOps CI Python3
+name: Train CI
 on:
   push:
     branches:
-      - api/inference
       - mlops/train
-      - mlops/infra
   pull_request:
     branches:
-      - api/inference
       - mlops/train
-      - mlops/infra
+
+
 jobs:
   test:
     runs-on: ubuntu-latest
