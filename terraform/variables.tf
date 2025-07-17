@@ -22,3 +22,39 @@ variable "environment" {
   description = "value for the environment tag"
   type        = string
 }
+
+variable "inference_api_repo_name" {
+  type        = string
+  description = "ecr repository name for the inference api docker images"
+}
+
+variable "inference_api_images_to_keep" {
+  type        = number
+  description = "number of images to keep for the inference api"
+}
+
+variable "train_script_repo_name" {
+  type        = string
+  description = "ecr repository name for the inference api docker images"
+}
+
+variable "train_script_images_to_keep" {
+  type        = number
+  description = "number of images to keep for the inference api"
+}
+
+variable "evaluate_script_repo_name" {
+  type        = string
+  description = "ecr repository name for the inference api docker images"
+}
+
+variable "evaluate_script_images_to_keep" {
+  type        = number
+  description = "number of images to keep for the inference api"
+}
+
+variable "account_id" {
+  type        = number
+  description = "account id for the aws account where the resources are being provisioned"
+}
+

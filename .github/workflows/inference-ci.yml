@@ -1,13 +1,12 @@
-name: MLOps CI Python3
+name: Inference CI
 on:
   push:
     branches:
-      - main
-      - develop
+      - api/inference
   pull_request:
     branches:
-      - main
-      - develop
+      - api/inference
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -52,20 +51,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install dependencies for compilation
-        run: make install
+      # - name: Install dependencies for compilation
+      #   run: make install
 
-      - name: Source venv && Run Compile Step
-        run: source venv/bin/activate && make compile
+      # - name: Source venv && Run Compile Step
+      #   run: source venv/bin/activate && make compile
 
       - name: Build and Push Docker Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: mlops/inference-api
-          IMAGE_TAG: ${{ github.sha }}
+          ECR_REPOSITORY: mlops/infer
+          IMAGE_TAG: v-${{ github.sha }}
         run: |
-
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f Docker/Dockerfile .
+          IMAGE_TAG="v-$(echo ${{ github.sha }} | cut -c1-7)"
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f Docker/InferenceAPI_Dockerfile .
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest 
 
 

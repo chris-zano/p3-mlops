@@ -56,3 +56,19 @@ resource "aws_iam_role_policy_attachment" "mlflow_s3_bucket_policy_attach" {
   role       = aws_iam_role.mlflow_instance_role.name
   policy_arn = aws_iam_policy.mlflow_s3_bucket_access.arn
 }
+
+
+resource "aws_iam_role" "ecr_access" {
+  name = "terraformECR"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      },
+      Action = "sts:AssumeRole"
+    }]
+  })
+}
