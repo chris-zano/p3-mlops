@@ -7,7 +7,6 @@ on:
     branches:
       - mlops/train
 
-
 jobs:
   test:
     runs-on: ubuntu-latest

@@ -72,3 +72,52 @@ resource "aws_iam_role" "ecr_access" {
     }]
   })
 }
+
+resource "aws_iam_role" "model_training_role" {
+  name = "model-training-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow",
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      },
+      Action = "sts:AssumeRole"
+    }]
+  })
+
+  tags = {
+    Name = "model-training-role"
+  }
+}
+
+resource "aws_iam_instance_profile" "model_training_profile" {
+  name = "model-training-profile"
+  role = aws_iam_role.model_training_role.name
+}
+
+resource "aws_iam_policy" "ecr_read_only" {
+  name = "ecr-read-only"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "model_training_ecr_policy_attach" {
+  role       = aws_iam_role.model_training_role.name
+  policy_arn = aws_iam_policy.ecr_read_only.arn
+}

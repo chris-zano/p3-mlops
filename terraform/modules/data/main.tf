@@ -10,6 +10,13 @@ data "template_file" "mlflow_user_data" {
   template = file("${path.module}/templates/mlflow_user_data.sh")
 }
 
+data "template_file" "model_train_user_data" {
+  template = file("${path.module}/templates/model_train_user_data.sh")
+  vars = {
+    ecr_image = var.ecr_repo_name
+  }
+}
+
 data "aws_ami_ids" "ubuntu_24" {
   owners = ["099720109477"]
 
