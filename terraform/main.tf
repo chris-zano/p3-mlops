@@ -65,6 +65,12 @@ module "inference_api_security_groups" {
       to_port     = 80
       protocol    = "tcp"
       cidr_blocks = ["0.0.0.0/0"]
+    },
+    {
+      from_port   = 8000
+      to_port     = 8000
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
     }
   ]
 
@@ -158,13 +164,13 @@ module "inference_api_ecs" {
   
   ecs_td_family = "inference"
   assign_public_ip = true
-  container_port = 80
+  container_port = 8000
   cpu_size = 1024
   desired_count = 1
   ecs_service_name = "inference-api"
   ecs_service_sg = [module.inference_api_security_groups.sg_id]
   ecs_service_subnets = module.project_vpc.public_subnet_ids
-  host_port = 80
+  host_port = 8000
   image_uri = "084129280516.dkr.ecr.eu-west-1.amazonaws.com/mlops/infer:latest"
   mem_size = 4096
   task_name = "inference-api"

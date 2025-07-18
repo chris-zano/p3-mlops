@@ -10,7 +10,8 @@ from transformers import Pipeline
 import torch
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import ast # For literal_eval to parse JSON strings
+import ast
+from fastapi.responses import HTMLResponse
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -51,9 +52,7 @@ class RecommendMovieRequest(BaseModel):
     Defines the structure of the request body for movie recommendations.
     """
     movie_title: str
-    num_recommendations: int = 10 # Default to 10 recommendations
-
-# --- Helper Functions for Recommendation System ---
+    num_recommendations: int = 10 
 
 # Function to convert stringified list of dicts to a list of names
 def convert_json_to_list(obj):
@@ -94,6 +93,13 @@ def combine_features(row):
         features.append(row['overview'])
     return " ".join(features)
 
+def normalize_title(title: str) -> str:
+    """
+    Normalize movie titles for case-insensitive and hyphen-insensitive matching.
+    """
+    # return title
+    return title.lower().replace("-", "").strip()
+
 # --- Data Loading and Preprocessing for Recommendation System ---
 @app.on_event("startup")
 async def load_models_and_data_on_startup():
@@ -104,6 +110,7 @@ async def load_models_and_data_on_startup():
     global text_generation_pipeline, movies_df, cosine_sim, indices
 
     # 1. Load Flan-T5 Model for Title Generation
+    print(f"MLFlow Registry URL set to {MLFLOW_TRACKING_URI}")
     print(f"Loading model '{REGISTERED_MODEL_NAME}' version/stage '{MODEL_VERSION_OR_STAGE}' from MLflow Registry...")
     try:
         model_uri = f"models:/{REGISTERED_MODEL_NAME}/{MODEL_VERSION_OR_STAGE}"
@@ -165,8 +172,11 @@ async def load_models_and_data_on_startup():
         # Compute cosine similarity matrix
         cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
 
-        # Create a Series that maps movie titles to their indices
-        indices = pd.Series(movies_df.index, index=movies_df['title']).drop_duplicates()
+        # Create a Series that maps normalized movie titles to their indices
+        indices = pd.Series(
+            movies_df.index, 
+            index=movies_df['title'].apply(normalize_title)
+        ).drop_duplicates()
 
         print("Movie Recommendation System data prepared successfully!")
         print(f"Recommendation data loaded for {len(movies_df)} movies.")
@@ -180,10 +190,11 @@ def get_recommendations(title: str, num_recommendations: int):
     """
     Generates content-based movie recommendations.
     """
-    if title not in indices:
+    normalized_title = normalize_title(title)
+    if normalized_title not in indices:
         return {"error": f"Movie title '{title}' not found in the database. Please try another title."}
 
-    idx = indices[title]
+    idx = indices[normalized_title]
     sim_scores = list(enumerate(cosine_sim[idx]))
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
 
@@ -247,6 +258,68 @@ async def recommend_movie(request: RecommendMovieRequest):
     except Exception as e:
         print(f"Error during movie recommendation: {e}")
         raise HTTPException(status_code=500, detail=f"Movie recommendation failed: {e}")
+
+@app.get("/", response_class=HTMLResponse)
+async def root_ui():
+    return """
+    <html>
+        <head>
+            <title>Movie AI Services</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 40px; background: #f9f9f9; }
+                input, textarea, button { margin: 10px 0; padding: 10px; width: 100%; max-width: 500px; }
+                button { cursor: pointer; }
+                .response { margin-top: 20px; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+
+            <h2>Generate a Movie Title</h2>
+            <textarea id="description" rows="4" placeholder="Enter movie description..."></textarea>
+            <br>
+            <button onclick="generateTitle()">Generate Title</button>
+            <div id="title-result" class="response"></div>
+
+
+            <h2>Recommend Movies</h2>
+            <input id="movie-title" type="text" placeholder="Enter movie title...">
+            <input id="num-recommendations" type="number" min="1" value="5" placeholder="Number of recommendations">
+            <button onclick="recommendMovie()">Recommend</button>
+            <div id="recommendations" class="response"></div>
+
+            <script>
+                async function generateTitle() {
+                    const desc = document.getElementById('description').value;
+                    const res = await fetch('/generate_title', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ description: desc })
+                    });
+                    const data = await res.json();
+                    document.getElementById('title-result').innerText = data.suggested_title || data.detail || "Error";
+                }
+
+                async function recommendMovie() {
+                    const title = document.getElementById('movie-title').value;
+                    const num = document.getElementById('num-recommendations').value;
+                    const res = await fetch('/recommend_movie', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ movie_title: title, num_recommendations: parseInt(num) })
+                    });
+                    const data = await res.json();
+                    if (data.recommended_movies) {
+                        document.getElementById('recommendations').innerHTML = "<ul>" +
+                            data.recommended_movies.map(m => `<li>${m}</li>`).join("") +
+                            "</ul>";
+                    } else {
+                        document.getElementById('recommendations').innerText = data.detail || "Error";
+                    }
+                }
+            </script>
+        </body>
+    </html>
+    """
 
 # --- Main entry point for Uvicorn ---
 if __name__ == "__main__":
