@@ -40,7 +40,7 @@ rm -rf awscliv2.zip aws/
 
 # ECR login
 aws ecr get-login-password --region $REGION | \
-    docker login --username AWS --password-stdin ${ECR_IMAGE%/*}
+    docker login --username AWS --password-stdin $${ECR_IMAGE%/*}
 
 # Pull and run the image
 docker pull $ECR_IMAGE

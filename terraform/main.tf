@@ -201,14 +201,15 @@ module "model_train_instance" {
     aws = aws.primary
   }
   ami_id               = module.datasets.ubuntu_ami_id
-  instance_type        = "g4ad.xlarge"
+  # instance_type        = "g4ad.xlarge"
+  instance_type        = "t2.micro"
   key_name             = "mlops"
   security_group_ids   = [module.model_training_security_groups.sg_id]
   subnet_id            = module.project_vpc.public_subnet_ids[0]
   user_data            = module.datasets.model_train_user_data
   iam_instance_profile = module.iam_resources.model_training_role
   tags = {
-    "Name" = "mlflow-instance"
+    "Name" = "model-training-instance"
   }
 }
 
