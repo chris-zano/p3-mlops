@@ -58,3 +58,23 @@ variable "account_id" {
   description = "account id for the aws account where the resources are being provisioned"
 }
 
+variable "inference_container_port" {
+  type = number
+}
+
+variable "inference_ecs_service_name" {
+  type = string
+}
+
+variable "inference_api_domain_name" {
+  type = string
+
+}
+
+variable "hosted_zone_id" {
+  type = string
+}
+
+variable "inference_api_alb_name" {
+  type = string
+}

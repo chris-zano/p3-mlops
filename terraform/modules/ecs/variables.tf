@@ -79,3 +79,19 @@ variable "log_group_name" {
 variable "aws_region" {
   
 }
+
+variable "target_group_arn" {
+  
+}
+
+variable "elb_name" {
+  
+}
+
+variable "alb_http_listener_arn" {
+  
+}
+
+variable "alb_https_listener_arn" {
+  
+}

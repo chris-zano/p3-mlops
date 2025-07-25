@@ -81,6 +81,7 @@ resource "aws_ecs_task_definition" "this" {
   network_mode = "awsvpc"
   execution_role_arn = aws_iam_role.ecs_execution_role.arn
   task_role_arn = aws_iam_role.ecs_task_role.arn
+  
   container_definitions = jsonencode([
     {
       name      = var.task_name
@@ -111,10 +112,24 @@ resource "aws_ecs_service" "this" {
   cluster         = aws_ecs_cluster.this.id
   task_definition = aws_ecs_task_definition.this.arn
   desired_count   = var.desired_count
+  launch_type = "FARGATE"
+  
+
+  load_balancer {
+    target_group_arn = var.target_group_arn
+    container_name   = var.task_name
+    container_port   = var.container_port
+  }
+
   network_configuration {
     assign_public_ip = var.assign_public_ip
     subnets = var.ecs_service_subnets
     security_groups = var.ecs_service_sg
-  }  
+  } 
+
+  deployment_minimum_healthy_percent = 50
+  deployment_maximum_percent         = 200
+
+  depends_on = [ var.alb_https_listener_arn, var.alb_http_listener_arn ]
 }
 
