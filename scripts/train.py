@@ -22,10 +22,9 @@ DATASET_NAME = "tmdb/tmdb-movie-metadata"
 OUTPUT_DIR = "RESULTS"
 MODEL_SAVE_PATH = "MODELS"
 
-MFLOW_SERVER_IP = "34.251.243.175"
+MFLOW_SERVER_IP = os.getenv('MFLOW_SERVER_IP')
 if MFLOW_SERVER_IP is None:
     raise ValueError("MFLOW_SERVER_IP environment variable is not set. Please set it to your MLflow server's public IP or ensure it's in your .env file.")
-
 MLFLOW_TRACKING_URI = f"http://{MFLOW_SERVER_IP}/"
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 

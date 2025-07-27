@@ -3,6 +3,7 @@ set -xe
 
 REGION="us-east-1"
 ECR_IMAGE="${ecr_image}"
+MFLOW_SERVER_IP="${mflow_server_ip}"
 
 # Install dependencies
 apt-get update -y

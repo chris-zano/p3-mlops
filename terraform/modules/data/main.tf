@@ -14,6 +14,7 @@ data "template_file" "model_train_user_data" {
   template = file("${path.module}/templates/model_train_user_data.sh")
   vars = {
     ecr_image = var.ecr_repo_name
+    mflow_server_ip = var.mflow_server_ip
   }
 }
 

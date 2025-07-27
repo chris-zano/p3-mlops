@@ -1,8 +1,16 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+    }
+  }
+}
+
 resource "aws_route53_record" "infer" {
   zone_id = var.route53_zone_id
-  name    = "infer"
-  type    = "CNAME"
-  ttl     = 300
+  name    = var.record_name
+  type    = var.record_type
+  ttl     = var.record_ttl
   records = [var.target_endpoint]
 }
 

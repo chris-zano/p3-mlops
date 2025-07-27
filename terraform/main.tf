@@ -192,14 +192,6 @@ module "iam_resources" {
   mlflow_buckets_arns = [module.mlflow_s3_bucket.s3_bucket_arn]
 }
 
-module "datasets" {
-  providers = {
-    aws = aws.primary
-  }
-  source        = "./modules/data"
-  ecr_repo_name = module.train_script_repo.repo_url
-}
-
 module "mlflow_instance" {
   source = "./modules/ec2"
   providers = {
@@ -216,6 +208,16 @@ module "mlflow_instance" {
     "Name" = "mlflow-instance"
   }
 }
+module "datasets" {
+  providers = {
+    aws = aws.primary
+  }
+  source        = "./modules/data"
+  ecr_repo_name = module.train_script_repo.repo_url
+  mflow_server_ip = module.mlflow_instance.public_ip
+}
+
+
 
 module "model_train_instance" {
   source = "./modules/ec2"
@@ -309,6 +311,22 @@ module "inference_subdomain" {
   }
   route53_zone_id = var.hosted_zone_id
   target_endpoint = module.inference_api_load_balancer.alb_dns
+  record_name = "infer"
+  record_type = "CNAME"
+  record_ttl = 300
+}
+
+
+module "mlflow_subdomain" {
+  source = "./modules/route_53"
+  providers = {
+    aws = aws.primary
+  }
+  route53_zone_id = var.hosted_zone_id
+  target_endpoint = module.mlflow_instance.public_ip
+  record_name = "mlflow"
+  record_type = "A"
+  record_ttl = 300
 }
 
 resource "local_file" "apply_outputs" {
