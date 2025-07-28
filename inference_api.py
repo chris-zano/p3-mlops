@@ -7,7 +7,6 @@ from pydantic import BaseModel
 import mlflow
 import mlflow.transformers
 from transformers import Pipeline
-import torch
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import ast
@@ -18,11 +17,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- Configuration ---
-MFLOW_SERVER_IP = os.getenv('MFLOW_SERVER_IP')
-if MFLOW_SERVER_IP is None:
+MFLOW_SERVER_URL = os.getenv('MFLOW_SERVER_URL')
+if MFLOW_SERVER_URL is None:
     raise ValueError("MFLOW_SERVER_IP environment variable is not set. Please set it to your MLflow server's public IP or ensure it's in your .env file.")
-MLFLOW_TRACKING_URI = f"http://{MFLOW_SERVER_IP}/"
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+mlflow.set_tracking_uri(MFLOW_SERVER_URL)
 
 REGISTERED_MODEL_NAME = "MovieTitleGeneratorFlanT5"
 MODEL_VERSION_OR_STAGE = "latest"

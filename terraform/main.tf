@@ -298,7 +298,7 @@ module "inference_api_ecs" {
   elb_name               = var.inference_api_alb_name
   environment_variables = [
     {
-      name  = "MFLOW_SERVER_IP"
+      name  = "MFLOW_SERVER_URL"
       value = module.mlflow_instance.public_ip
     },
   ]
