@@ -108,7 +108,7 @@ async def load_models_and_data_on_startup():
     global text_generation_pipeline, movies_df, cosine_sim, indices
 
     # 1. Load Flan-T5 Model for Title Generation
-    print(f"MLFlow Registry URL set to {MLFLOW_TRACKING_URI}")
+    print(f"MLFlow Registry URL set to {MFLOW_SERVER_URL}")
     print(f"Loading model '{REGISTERED_MODEL_NAME}' version/stage '{MODEL_VERSION_OR_STAGE}' from MLflow Registry...")
     try:
         model_uri = f"models:/{REGISTERED_MODEL_NAME}/{MODEL_VERSION_OR_STAGE}"

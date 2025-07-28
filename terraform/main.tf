@@ -299,7 +299,7 @@ module "inference_api_ecs" {
   environment_variables = [
     {
       name  = "MFLOW_SERVER_URL"
-      value = module.mlflow_instance.public_ip
+      value = "http://mlflow.csniico.site"
     },
   ]
 }
