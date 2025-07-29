@@ -46,28 +46,6 @@ resource "aws_iam_role" "ecs_task_role" {
 }
 
 
-resource "aws_ecs_cluster" "this" {
-  name = var.ecs_cluster_name
-
-  setting {
-    name  = "containerInsights"
-    value = var.container_insights_enabled
-  }
-}
-
-resource "aws_ecs_cluster_capacity_providers" "this" {
-  cluster_name = aws_ecs_cluster.this.name
-
-  capacity_providers = ["FARGATE"]
-
-  default_capacity_provider_strategy {
-    base              = 1
-    weight            = 100
-    capacity_provider = "FARGATE"
-  }
-}
-
-
 resource "aws_cloudwatch_log_group" "ecs_logs" {
   name              = var.log_group_name 
   retention_in_days = 1
@@ -109,7 +87,7 @@ resource "aws_ecs_task_definition" "this" {
 
 resource "aws_ecs_service" "this" {
   name            = var.ecs_service_name
-  cluster         = aws_ecs_cluster.this.id
+  cluster         = var.ecs_cluster_id
   task_definition = aws_ecs_task_definition.this.arn
   desired_count   = var.desired_count
   launch_type = "FARGATE"

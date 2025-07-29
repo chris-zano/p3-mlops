@@ -14,6 +14,15 @@ variable "certificate_arn" {
     type = string
 }
 
-variable "target_group_arn" {
-    type = string
+variable "enable_weighted_routing" {
+  type    = bool
+  default = false
+}
+
+variable "target_group_1_arn" {
+  type = string
+}
+
+variable "target_group_2_arn" {
+  type = string
 }

@@ -248,6 +248,17 @@ module "inference_target_group" {
   vpc_id           = module.project_vpc.vpc_id
 }
 
+module "inference_challenger_target_group" {
+  source = "./modules/target_group"
+  providers = {
+    aws = aws.primary
+  }
+
+  container_port   = var.inference_container_port
+  ecs_service_name = var.inference_challenger_ecs_service_name
+  vpc_id           = module.project_vpc.vpc_id
+}
+
 module "inference_api_acm" {
   source = "./modules/acm"
   providers = {
@@ -263,21 +274,34 @@ module "inference_api_load_balancer" {
   providers = {
     aws = aws.primary
   }
-  alb_name            = var.inference_api_alb_name
-  alb_security_groups = [module.inference_alb_sg.sg_id]
-  alb_subnets         = module.project_vpc.public_subnet_ids
-  certificate_arn     = module.inference_api_acm.certificate_arn
-  target_group_arn    = module.inference_target_group.target_group_arn
 
+  alb_name              = var.inference_api_alb_name
+  alb_security_groups   = [module.inference_alb_sg.sg_id]
+  alb_subnets           = module.project_vpc.public_subnet_ids
+  certificate_arn       = module.inference_api_acm.certificate_arn
+
+  # Weighted routing support
+  enable_weighted_routing = true
+  target_group_1_arn      = module.inference_target_group.target_group_arn
+  target_group_2_arn      = module.inference_challenger_target_group.target_group_arn
 }
+
+module "ecs_cluster" {
+  source = "./modules/ecs_cluster"
+  providers = {
+    aws = aws.primary
+  }
+  container_insights_enabled = true
+  ecs_cluster_name = "inference_api_cluster"
+}
+
 module "inference_api_ecs" {
   source = "./modules/ecs"
   providers = {
     aws = aws.primary
   }
-  ecs_cluster_name           = "inference_api_cluster"
-  container_insights_enabled = "enabled"
-
+  ecs_cluster_name = module.ecs_cluster.cluster_name
+  ecs_cluster_id = module.ecs_cluster.ecs_cluster_id
   ecs_td_family          = "inference"
   assign_public_ip       = true
   container_port         = var.inference_container_port
@@ -293,6 +317,39 @@ module "inference_api_ecs" {
   task_name              = "inference-api"
   aws_region             = "eu-west-1"
   log_group_name         = "inference-api"
+  alb_http_listener_arn  = module.inference_api_load_balancer.http_alb_listener_arn
+  alb_https_listener_arn = module.inference_api_load_balancer.https_alb_listener_arn
+  elb_name               = var.inference_api_alb_name
+  environment_variables = [
+    {
+      name  = "MFLOW_SERVER_URL"
+      value = "http://mlflow.csniico.site"
+    },
+  ]
+}
+
+module "inference_challenger_api_ecs" {
+  source = "./modules/ecs"
+  providers = {
+    aws = aws.primary
+  }
+  ecs_cluster_name = module.ecs_cluster.cluster_name
+  ecs_cluster_id = module.ecs_cluster.ecs_cluster_id
+  ecs_td_family          = "inference-challenger"
+  assign_public_ip       = true
+  container_port         = var.inference_container_port
+  cpu_size               = 1024
+  desired_count          = 1
+  ecs_service_name       = var.inference_challenger_ecs_service_name
+  target_group_arn       = module.inference_challenger_target_group.target_group_arn
+  ecs_service_sg         = [aws_security_group.inference_service_sg.id]
+  ecs_service_subnets    = module.project_vpc.public_subnet_ids
+  host_port              = var.inference_container_port
+  image_uri              = "084129280516.dkr.ecr.eu-west-1.amazonaws.com/mlops/infer:challenger"
+  mem_size               = 4096
+  task_name              = "inference-api-challenger"
+  aws_region             = "eu-west-1"
+  log_group_name         = "inference-api-challenger"
   alb_http_listener_arn  = module.inference_api_load_balancer.http_alb_listener_arn
   alb_https_listener_arn = module.inference_api_load_balancer.https_alb_listener_arn
   elb_name               = var.inference_api_alb_name

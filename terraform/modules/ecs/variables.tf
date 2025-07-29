@@ -2,9 +2,6 @@ variable "ecs_cluster_name" {
   type = string
 }
 
-variable "container_insights_enabled" {
-  type = string
-}
 
 variable "ecs_td_family" {
   type = string
@@ -93,5 +90,9 @@ variable "alb_http_listener_arn" {
 }
 
 variable "alb_https_listener_arn" {
+  
+}
+
+variable "ecs_cluster_id" {
   
 }

@@ -66,6 +66,10 @@ variable "inference_ecs_service_name" {
   type = string
 }
 
+variable "inference_challenger_ecs_service_name" {
+  type = string
+}
+
 variable "inference_api_domain_name" {
   type = string
 
