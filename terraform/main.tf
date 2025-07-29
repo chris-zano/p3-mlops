@@ -291,7 +291,7 @@ module "ecs_cluster" {
   providers = {
     aws = aws.primary
   }
-  container_insights_enabled = true
+  container_insights_enabled = "enabled"
   ecs_cluster_name = "inference_api_cluster"
 }
 
