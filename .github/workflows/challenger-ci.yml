@@ -1,4 +1,4 @@
-name: Inference CI
+name: Challenger CI
 on:
   push:
     branches:
