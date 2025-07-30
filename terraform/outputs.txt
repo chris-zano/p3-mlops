@@ -1,0 +1,2 @@
+  "mlflow_instance_public_ip": "18.201.240.184"
+  "mlflow_s3_bucket_name": "mlflow-source-bucket-niico-phase3"

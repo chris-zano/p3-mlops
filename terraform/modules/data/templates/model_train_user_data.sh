@@ -39,6 +39,10 @@ unzip -q awscliv2.zip
 ./aws/install
 rm -rf awscliv2.zip aws/
 
+# Add docker to the user group
+usermod -aG docker ubuntu
+newgrp docker
+
 # ECR login
 aws ecr get-login-password --region $REGION | \
     docker login --username AWS --password-stdin $${ECR_IMAGE%/*}

@@ -22,11 +22,11 @@ DATASET_NAME = "tmdb/tmdb-movie-metadata"
 OUTPUT_DIR = "RESULTS"
 MODEL_SAVE_PATH = "MODELS"
 
-MFLOW_SERVER_IP = os.getenv('MFLOW_SERVER_IP')
-if MFLOW_SERVER_IP is None:
-    raise ValueError("MFLOW_SERVER_IP environment variable is not set. Please set it to your MLflow server's public IP or ensure it's in your .env file.")
-MLFLOW_TRACKING_URI = f"http://{MFLOW_SERVER_IP}/"
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+MFLOW_SERVER_URL = os.getenv('MFLOW_SERVER_URL')
+if MFLOW_SERVER_URL is None:
+    raise ValueError("MFLOW_SERVER_URL environment variable is not set. Please set it to your MLflow server's public IP or ensure it's in your .env file.")
+
+mlflow.set_tracking_uri(MFLOW_SERVER_URL)
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(MODEL_SAVE_PATH, exist_ok=True)
@@ -64,16 +64,13 @@ def _load_dataset(dataset_name_param: str) -> DatasetDict:
         df_processed = df_movies[['overview', 'title']].dropna().reset_index(drop=True)
        
         df_processed = df_processed.rename(columns={'overview': 'description'})
-        df_processed = df_processed.head(5)
 
         print(f"Processed DataFrame has {len(df_processed)} entries after cleaning.")
         print(f"Sample processed data (first 2 entries):\n{df_processed.head(2)}")
 
        
         hf_dataset = Dataset.from_pandas(df_processed)
-
-       
-       
+            
         train_test_split = hf_dataset.train_test_split(test_size=0.2, seed=42)
         raw_datasets = DatasetDict({
             'train': train_test_split['train'],
