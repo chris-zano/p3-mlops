@@ -23,7 +23,7 @@ if MFLOW_SERVER_URL is None:
 mlflow.set_tracking_uri(MFLOW_SERVER_URL)
 
 REGISTERED_MODEL_NAME = "MovieTitleGeneratorFlanT5"
-MODEL_VERSION_OR_STAGE = "latest"
+MODEL_VERSION_OR_STAGE = "2"
 
 # --- Global Variables for Models and Data ---
 text_generation_pipeline: Pipeline = None
