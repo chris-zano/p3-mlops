@@ -64,6 +64,7 @@ def _load_dataset(dataset_name_param: str) -> DatasetDict:
         df_processed = df_movies[['overview', 'title']].dropna().reset_index(drop=True)
        
         df_processed = df_processed.rename(columns={'overview': 'description'})
+        df_processed = df_processed.head(20)
 
         print(f"Processed DataFrame has {len(df_processed)} entries after cleaning.")
         print(f"Sample processed data (first 2 entries):\n{df_processed.head(2)}")

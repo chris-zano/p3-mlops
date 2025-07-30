@@ -225,7 +225,7 @@ module "model_train_instance" {
     aws = aws.primary
   }
   ami_id = module.datasets.ubuntu_ami_id
-  instance_type        = "m5.xlarge"
+  instance_type        = "m5.2xlarge"
   # instance_type        = "t2.micro"
   key_name             = "mlops"
   security_group_ids   = [module.model_training_security_groups.sg_id]

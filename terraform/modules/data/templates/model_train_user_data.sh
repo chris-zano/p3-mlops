@@ -3,7 +3,8 @@ set -xe
 
 REGION="us-east-1"
 ECR_IMAGE="${ecr_image}"
-MFLOW_SERVER_IP="${mflow_server_ip}"
+MFLOW_SERVER_URL="${mflow_server_ip}"
+echo 'export MFLOW_SERVER_URL="${mflow_server_ip}"' >> ~/.bashrc
 
 # Install dependencies
 apt-get update -y
@@ -49,4 +50,4 @@ aws ecr get-login-password --region $REGION | \
 
 # Pull and run the image
 docker pull $ECR_IMAGE
-docker run -d --name model_train_image $ECR_IMAGE
+docker run -d --name model_train_image -e MFLOW_SERVER_URL=$MFLOW_SERVER_URL $ECR_IMAGE
