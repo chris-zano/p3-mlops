@@ -70,3 +70,10 @@ jobs:
 
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:challenger
+
+      - name: Force ECS Service Deployment
+        run: |
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
+            --service ${{ secrets.CHALLENGER_ECS_SERVICE_NAME }} \
+            --force-new-deployment

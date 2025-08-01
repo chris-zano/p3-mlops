@@ -1,3 +1,4 @@
+import json
 import os
 import uvicorn
 import pandas as pd
@@ -19,7 +20,10 @@ load_dotenv()
 # --- Configuration ---
 MFLOW_SERVER_URL = os.getenv('MFLOW_SERVER_URL')
 REGISTERED_MODEL_NAME = os.getenv('REGISTERED_MODEL_NAME') or "MovieTitleGeneratorFlanT5"
-MODEL_VERSION = os.getenv('MODEL_VERSION')
+
+raw = os.getenv("MODEL_VERSION")
+parsed = json.loads(raw)
+MODEL_VERSION = parsed["lts_model_version"]
 
 if MFLOW_SERVER_URL is None:
     raise ValueError("MFLOW_SERVER_IP environment variable is not set. Please set it to your MLflow server's public IP or ensure it's in your .env file.")

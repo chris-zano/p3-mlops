@@ -51,22 +51,20 @@ jobs:
         with:
           python-version: "3.12"
 
-      # - name: Install dependencies for compilation
-      #   run: make install
-
-      # - name: Source venv && Run Compile Step
-      #   run: source venv/bin/activate && make compile
-
       - name: Build and Push Docker Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: mlops/infer
-          IMAGE_TAG: v-${{ github.sha }}
         run: |
           IMAGE_TAG="v-$(echo ${{ github.sha }} | cut -c1-7)"
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f Docker/InferenceAPI_Dockerfile .
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest 
-
-
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Force ECS Service Deployment
+        run: |
+          aws ecs update-service \
+            --cluster ${{ secrets.ECS_CLUSTER_NAME }} \
+            --service ${{ secrets.LTS_ECS_SERVICE_NAME }} \
+            --force-new-deployment
