@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy your FastAPI application code
 # This assumes your FastAPI app is in a directory named 'api'
-COPY scripts/inference_api.py .
+COPY inference_api.py .
 
 
 # Expose the port that your FastAPI application will listen on

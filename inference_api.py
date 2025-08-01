@@ -12,6 +12,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import ast
 from fastapi.responses import HTMLResponse
+import sentry_sdk
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -43,6 +44,13 @@ text_generation_pipeline: Pipeline = None
 movies_df = None # DataFrame to store movie metadata for recommendations
 cosine_sim = None # Cosine similarity matrix for recommendations
 indices = None # Series mapping movie titles to their indices
+
+
+sentry_sdk.init(
+    dsn="https://d924e952d8c14e692c8ae067d942fb27@o4509548115001344.ingest.de.sentry.io/4509768582299728",
+    traces_sample_rate=1.0,
+    send_default_pii=True,
+)
 
 # --- FastAPI Application Setup ---
 app = FastAPI(

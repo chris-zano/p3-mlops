@@ -22,3 +22,4 @@ evaluate
 rouge_score
 boto3
 pytest
+sentry-sdk[fastapi]

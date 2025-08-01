@@ -8,6 +8,7 @@ from datasets import Dataset
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import evaluate
 import nltk
+import json
 
 # Ensure nltk 'punkt' is available
 try:
@@ -19,17 +20,37 @@ except LookupError:
 from dotenv import load_dotenv
 load_dotenv()
 
-# Config
-MLFLOW_TRACKING_URI = f"http://{os.getenv('MFLOW_SERVER_IP')}/"
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-MODEL_NAME = "MovieTitleGeneratorFlanT5"
+MFLOW_SERVER_URL = os.getenv('MFLOW_SERVER_URL')
+REGISTERED_MODEL_NAME = os.getenv('REGISTERED_MODEL_NAME') or "MovieTitleGeneratorFlanT5"
+
+raw = os.getenv("MODEL_VERSION")
+parsed = json.loads(raw)
+MODEL_VERSION = parsed["lts_model_version"]
+
+
+if MFLOW_SERVER_URL is None:
+    raise ValueError("MFLOW_SERVER_IP environment variable is not set. Please set it to your MLflow server's public IP or ensure it's in your .env file.")
+
+if REGISTERED_MODEL_NAME is None:
+    raise ValueError("REGISTERED_MODEL_NAME environment variable is not set in your .env file.")
+
+if MODEL_VERSION is None:
+    raise ValueError("MODEL_VERSION environment variable is not set in your .env file.")
+
+
+mlflow.set_tracking_uri(MFLOW_SERVER_URL)
+
+
+# Constants
 DATASET_NAME = "tmdb/tmdb-movie-metadata"
 
 # Load model & tokenizer from MLflow
-model_uri = f"models:/{MODEL_NAME}/latest"
+model_uri = f"models:/{REGISTERED_MODEL_NAME}/{MODEL_VERSION}"
 loaded = mlflow.transformers.load_model(model_uri)
+
 model = loaded.model
 tokenizer = loaded.tokenizer
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 model.eval()
@@ -49,7 +70,7 @@ preds, refs = [], []
 
 # Start MLflow run
 with mlflow.start_run(run_name="Model Evaluation"):
-    mlflow.log_param("model_name", MODEL_NAME)
+    mlflow.log_param("model_name", REGISTERED_MODEL_NAME)
     mlflow.log_param("dataset", DATASET_NAME)
     mlflow.log_param("evaluation_size", len(test_data))
 
