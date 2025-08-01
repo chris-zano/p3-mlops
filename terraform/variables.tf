@@ -1,3 +1,8 @@
+variable "project_name" {
+  description = "value for the project name"
+  type        = string
+}
+
 variable "vpc_cidr" {
   description = "CIDR block for the VPC (10.0.0.0/16 provides 65,536 IP addresses)"
   type        = string
@@ -81,4 +86,9 @@ variable "hosted_zone_id" {
 
 variable "inference_api_alb_name" {
   type = string
+}
+
+
+variable "aws_region" {
+
 }

@@ -1,4 +1,4 @@
 output "event_bridge_rule_arn" {
   description = "The ARN of the EventBridge rule."
-  value       = aws_cloudwatch_event_rule.ecr_push_rule.arn
+  value       = aws_cloudwatch_event_rule.challenger_repo_push_rule.arn
 }

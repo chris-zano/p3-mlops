@@ -27,6 +27,7 @@ module "evaluate_script_repo" {
 
 module "project_vpc" {
   source               = "./modules/vpc"
+  project_name         = var.project_name
   availability_zones   = var.availability_zones
   vpc_cidr             = var.vpc_cidr
   public_subnet_cidrs  = var.public_subnet_cidrs
@@ -155,10 +156,10 @@ module "inference_alb_sg" {
 }
 
 resource "aws_security_group" "inference_service_sg" {
-  provider = aws.primary
-  depends_on = [ module.project_vpc.vpc_id ]
-  name   = "ecs-service-sg"
-  vpc_id = module.project_vpc.vpc_id
+  provider   = aws.primary
+  depends_on = [module.project_vpc.vpc_id]
+  name       = "ecs-service-sg"
+  vpc_id     = module.project_vpc.vpc_id
 
   ingress {
     from_port       = 8000
@@ -190,6 +191,13 @@ module "iam_resources" {
     aws = aws.primary
   }
   mlflow_buckets_arns = [module.mlflow_s3_bucket.s3_bucket_arn]
+  lambda_role_name    = "${var.project_name}-ec2-starter-lambda-role"
+  ec2_instance_id     = module.model_train_instance.instance_id
+  aws_region          = var.aws_region
+  aws_account_id      = var.account_id
+  project_name = var.project_name
+  ecs_cluster_name               = module.ecs_cluster.cluster_name
+  inference_challenger_ecs_service_name = var.inference_challenger_ecs_service_name
 }
 
 module "mlflow_instance" {
@@ -206,14 +214,15 @@ module "mlflow_instance" {
   iam_instance_profile = module.iam_resources.mlflow_instance_profile_name
   tags = {
     "Name" = "mlflow-instance"
+    "Schedule" = "Workday"
   }
 }
 module "datasets" {
   providers = {
     aws = aws.primary
   }
-  source        = "./modules/data"
-  ecr_repo_name = module.train_script_repo.repo_url
+  source          = "./modules/data"
+  ecr_repo_name   = module.train_script_repo.repo_url
   mflow_server_ip = "http://mlflow.csniico.site"
 }
 
@@ -224,8 +233,8 @@ module "model_train_instance" {
   providers = {
     aws = aws.primary
   }
-  ami_id = module.datasets.ubuntu_ami_id
-  instance_type        = "m5.2xlarge"
+  ami_id        = module.datasets.ubuntu_ami_id
+  instance_type = "m5.2xlarge"
   # instance_type        = "t2.micro"
   key_name             = "mlops"
   security_group_ids   = [module.model_training_security_groups.sg_id]
@@ -237,142 +246,166 @@ module "model_train_instance" {
   }
 }
 
-# module "inference_target_group" {
-#   source = "./modules/target_group"
-#   providers = {
-#     aws = aws.primary
-#   }
+module "inference_target_group" {
+  source = "./modules/target_group"
+  providers = {
+    aws = aws.primary
+  }
 
-#   container_port   = var.inference_container_port
-#   ecs_service_name = var.inference_ecs_service_name
-#   vpc_id           = module.project_vpc.vpc_id
-# }
+  container_port   = var.inference_container_port
+  ecs_service_name = var.inference_ecs_service_name
+  vpc_id           = module.project_vpc.vpc_id
+}
 
-# module "inference_challenger_target_group" {
-#   source = "./modules/target_group"
-#   providers = {
-#     aws = aws.primary
-#   }
+module "inference_challenger_target_group" {
+  source = "./modules/target_group"
+  providers = {
+    aws = aws.primary
+  }
 
-#   container_port   = var.inference_container_port
-#   ecs_service_name = var.inference_challenger_ecs_service_name
-#   vpc_id           = module.project_vpc.vpc_id
-# }
+  container_port   = var.inference_container_port
+  ecs_service_name = var.inference_challenger_ecs_service_name
+  vpc_id           = module.project_vpc.vpc_id
+}
 
-# module "inference_api_acm" {
-#   source = "./modules/acm"
-#   providers = {
-#     aws = aws.primary
-#   }
-#   domain_name               = var.inference_api_domain_name
-#   hosted_zone_id            = var.hosted_zone_id
-#   subject_alternative_names = ["${var.inference_api_domain_name}"]
-# }
+module "inference_api_acm" {
+  source = "./modules/acm"
+  providers = {
+    aws = aws.primary
+  }
+  domain_name               = var.inference_api_domain_name
+  hosted_zone_id            = var.hosted_zone_id
+  subject_alternative_names = ["${var.inference_api_domain_name}"]
+}
 
-# module "inference_api_load_balancer" {
-#   source = "./modules/alb"
-#   providers = {
-#     aws = aws.primary
-#   }
+module "inference_api_load_balancer" {
+  source = "./modules/alb"
+  providers = {
+    aws = aws.primary
+  }
 
-#   alb_name              = var.inference_api_alb_name
-#   alb_security_groups   = [module.inference_alb_sg.sg_id]
-#   alb_subnets           = module.project_vpc.public_subnet_ids
-#   certificate_arn       = module.inference_api_acm.certificate_arn
+  alb_name            = var.inference_api_alb_name
+  alb_security_groups = [module.inference_alb_sg.sg_id]
+  alb_subnets         = module.project_vpc.public_subnet_ids
+  certificate_arn     = module.inference_api_acm.certificate_arn
 
-#   # Weighted routing support
-#   enable_weighted_routing = true
-#   target_group_1_arn      = module.inference_target_group.target_group_arn
-#   target_group_2_arn      = module.inference_challenger_target_group.target_group_arn
-# }
+  # Weighted routing support
+  enable_weighted_routing = true
+  target_group_1_arn      = module.inference_target_group.target_group_arn
+  target_group_2_arn      = module.inference_challenger_target_group.target_group_arn
+}
 
-# module "ecs_cluster" {
-#   source = "./modules/ecs_cluster"
-#   providers = {
-#     aws = aws.primary
-#   }
-#   container_insights_enabled = "enabled"
-#   ecs_cluster_name = "inference_api_cluster"
-# }
+module "ecs_cluster" {
+  source = "./modules/ecs_cluster"
+  providers = {
+    aws = aws.primary
+  }
+  container_insights_enabled = "enabled"
+  ecs_cluster_name           = "inference_api_cluster"
+}
 
-# module "inference_api_ecs" {
-#   source = "./modules/ecs"
-#   providers = {
-#     aws = aws.primary
-#   }
-#   ecs_cluster_name = module.ecs_cluster.cluster_name
-#   ecs_cluster_id = module.ecs_cluster.ecs_cluster_id
-#   ecs_td_family          = "inference"
-#   assign_public_ip       = true
-#   container_port         = var.inference_container_port
-#   cpu_size               = 1024
-#   desired_count          = 1
-#   ecs_service_name       = var.inference_ecs_service_name
-#   target_group_arn       = module.inference_target_group.target_group_arn
-#   ecs_service_sg         = [aws_security_group.inference_service_sg.id]
-#   ecs_service_subnets    = module.project_vpc.public_subnet_ids
-#   host_port              = var.inference_container_port
-#   image_uri              = "084129280516.dkr.ecr.eu-west-1.amazonaws.com/mlops/infer:latest"
-#   mem_size               = 4096
-#   task_name              = "inference-api"
-#   aws_region             = "eu-west-1"
-#   log_group_name         = "inference-api"
-#   alb_http_listener_arn  = module.inference_api_load_balancer.http_alb_listener_arn
-#   alb_https_listener_arn = module.inference_api_load_balancer.https_alb_listener_arn
-#   elb_name               = var.inference_api_alb_name
-#   environment_variables = [
-#     {
-#       name  = "MFLOW_SERVER_URL"
-#       value = "http://mlflow.csniico.site"
-#     },
-#   ]
-# }
+module "inference_api_ecs" {
+  source = "./modules/ecs"
+  providers = {
+    aws = aws.primary
+  }
+  ecs_cluster_name       = module.ecs_cluster.cluster_name
+  ecs_cluster_id         = module.ecs_cluster.ecs_cluster_id
+  ecs_td_family          = "inference"
+  assign_public_ip       = true
+  container_port         = var.inference_container_port
+  cpu_size               = 1024
+  desired_count          = 1
+  ecs_service_name       = var.inference_ecs_service_name
+  target_group_arn       = module.inference_target_group.target_group_arn
+  ecs_service_sg         = [aws_security_group.inference_service_sg.id]
+  ecs_service_subnets    = module.project_vpc.public_subnet_ids
+  host_port              = var.inference_container_port
+  image_uri              = "084129280516.dkr.ecr.eu-west-1.amazonaws.com/mlops/infer:latest"
+  mem_size               = 4096
+  task_name              = "inference-api"
+  aws_region             = "eu-west-1"
+  log_group_name         = "inference-api"
+  alb_http_listener_arn  = module.inference_api_load_balancer.http_alb_listener_arn
+  alb_https_listener_arn = module.inference_api_load_balancer.https_alb_listener_arn
+  elb_name               = var.inference_api_alb_name
+  environment_variables = [
+    {
+      name  = "MFLOW_SERVER_URL"
+      value = "http://mlflow.csniico.site"
+    },
+  ]
+}
 
-# module "inference_challenger_api_ecs" {
-#   source = "./modules/ecs"
-#   providers = {
-#     aws = aws.primary
-#   }
-#   ecs_cluster_name = module.ecs_cluster.cluster_name
-#   ecs_cluster_id = module.ecs_cluster.ecs_cluster_id
-#   ecs_td_family          = "inference-challenger"
-#   assign_public_ip       = true
-#   container_port         = var.inference_container_port
-#   cpu_size               = 1024
-#   desired_count          = 1
-#   ecs_service_name       = var.inference_challenger_ecs_service_name
-#   target_group_arn       = module.inference_challenger_target_group.target_group_arn
-#   ecs_service_sg         = [aws_security_group.inference_service_sg.id]
-#   ecs_service_subnets    = module.project_vpc.public_subnet_ids
-#   host_port              = var.inference_container_port
-#   image_uri              = "084129280516.dkr.ecr.eu-west-1.amazonaws.com/mlops/infer:challenger"
-#   mem_size               = 4096
-#   task_name              = "inference-api-challenger"
-#   aws_region             = "eu-west-1"
-#   log_group_name         = "inference-api-challenger"
-#   alb_http_listener_arn  = module.inference_api_load_balancer.http_alb_listener_arn
-#   alb_https_listener_arn = module.inference_api_load_balancer.https_alb_listener_arn
-#   elb_name               = var.inference_api_alb_name
-#   environment_variables = [
-#     {
-#       name  = "MFLOW_SERVER_URL"
-#       value = "http://mlflow.csniico.site"
-#     },
-#   ]
-# }
+module "inference_challenger_api_ecs" {
+  source = "./modules/ecs"
+  providers = {
+    aws = aws.primary
+  }
+  ecs_cluster_name       = module.ecs_cluster.cluster_name
+  ecs_cluster_id         = module.ecs_cluster.ecs_cluster_id
+  ecs_td_family          = "inference-challenger"
+  assign_public_ip       = true
+  container_port         = var.inference_container_port
+  cpu_size               = 1024
+  desired_count          = 1
+  ecs_service_name       = var.inference_challenger_ecs_service_name
+  target_group_arn       = module.inference_challenger_target_group.target_group_arn
+  ecs_service_sg         = [aws_security_group.inference_service_sg.id]
+  ecs_service_subnets    = module.project_vpc.public_subnet_ids
+  host_port              = var.inference_container_port
+  image_uri              = "084129280516.dkr.ecr.eu-west-1.amazonaws.com/mlops/infer:challenger"
+  mem_size               = 4096
+  task_name              = "inference-api-challenger"
+  aws_region             = "eu-west-1"
+  log_group_name         = "inference-api-challenger"
+  alb_http_listener_arn  = module.inference_api_load_balancer.http_alb_listener_arn
+  alb_https_listener_arn = module.inference_api_load_balancer.https_alb_listener_arn
+  elb_name               = var.inference_api_alb_name
+  environment_variables = [
+    {
+      name  = "MFLOW_SERVER_URL"
+      value = "http://mlflow.csniico.site"
+    },
+  ]
+}
 
-# module "inference_subdomain" {
-#   source = "./modules/route_53"
-#   providers = {
-#     aws = aws.primary
-#   }
-#   route53_zone_id = var.hosted_zone_id
-#   target_endpoint = module.inference_api_load_balancer.alb_dns
-#   record_name = "infer"
-#   record_type = "CNAME"
-#   record_ttl = 300
-# }
+module "inference_subdomain" {
+  source = "./modules/route_53"
+  providers = {
+    aws = aws.primary
+  }
+  route53_zone_id = var.hosted_zone_id
+  target_endpoint = module.inference_api_load_balancer.alb_dns
+  record_name     = "infer"
+  record_type     = "CNAME"
+  record_ttl      = 300
+}
 
+module "ecr_push_lambda" {
+  source = "./modules/lambda"
+  providers = {
+    aws = aws.primary
+  }
+  function_name    = "${var.project_name}-start-ec2-on-ecr-push"
+  handler          = "start_ec2_on_ecr_push.lambda_handler"
+  runtime          = "python3.9"
+  lambda_role_arn  = module.iam_resources.lambda_ec2_starter_role_arn
+  ec2_instance_id  = module.model_train_instance.instance_id
+  aws_region       = var.aws_region
+  source_code_path = module.datasets.lambda_script_path
+  event_rule_arn   = module.ecr_event_bridge.event_bridge_rule_arn
+}
+
+module "ecr_event_bridge" {
+  source = "./modules/event_bridge"
+  providers = {
+    aws = aws.primary
+  }
+  rule_name           = "${var.project_name}-ecr-push-to-start-ec2-rule"
+  ecr_repository_name = module.train_script_repo.name
+  lambda_function_arn = module.ecr_push_lambda.lambda_function_arn
+}
 
 module "mlflow_subdomain" {
   source = "./modules/route_53"
@@ -381,9 +414,36 @@ module "mlflow_subdomain" {
   }
   route53_zone_id = var.hosted_zone_id
   target_endpoint = module.mlflow_instance.public_ip
-  record_name = "mlflow"
-  record_type = "A"
-  record_ttl = 300
+  record_name     = "mlflow"
+  record_type     = "A"
+  record_ttl      = 300
+}
+
+# New Lambda function to redeploy the challenger
+module "redeploys_challenger_lambda" {
+  source = "./modules/lambda_challenger"
+  providers = {
+    aws = aws.primary
+  }
+  function_name    = "${var.project_name}-redeploys-challenger"
+  lambda_role_arn  = module.iam_resources.challenger_redeployment_role_arn
+  ecs_cluster_name = module.ecs_cluster.cluster_name
+  ecs_service_name = var.inference_challenger_ecs_service_name
+  container_name   = "inference-api-challenger"
+  source_code_path = module.datasets.challenger_lambda_script_path
+  event_rule_arn   = module.ecr_challenger_event_bridge.event_bridge_rule_arn
+}
+
+# New EventBridge rule to listen for pushes to the challenger repo
+module "ecr_challenger_event_bridge" {
+  source = "./modules/event_bridge_challenger"
+  providers = {
+    aws = aws.primary
+  }
+  rule_name           = "${var.project_name}-ecr-push-to-redeploys-challenger-rule"
+  ecr_repository_name = module.inference_api_repo.name
+  lambda_function_arn = module.redeploys_challenger_lambda.lambda_function_arn
+  ecr_image_tag = "challenger"
 }
 
 resource "local_file" "apply_outputs" {
