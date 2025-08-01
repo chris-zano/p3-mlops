@@ -96,3 +96,11 @@ variable "alb_https_listener_arn" {
 variable "ecs_cluster_id" {
   
 }
+
+variable "secrets" {
+  type = list(object({
+    name      = string
+    valueFrom = string
+  }))
+  default = []
+}

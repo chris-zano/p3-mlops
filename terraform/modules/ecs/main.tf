@@ -45,6 +45,25 @@ resource "aws_iam_role" "ecs_task_role" {
   })
 }
 
+resource "aws_iam_role_policy" "ecs_task_role_secrets" {
+  role = aws_iam_role.ecs_task_role.name
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret"
+        ],
+        Resource = [
+          "*"
+        ]
+      }
+    ]
+  })
+}
+
 
 resource "aws_cloudwatch_log_group" "ecs_logs" {
   name              = var.log_group_name 
@@ -66,6 +85,7 @@ resource "aws_ecs_task_definition" "this" {
       image     = var.image_uri
       essential = true
       environment = var.environment_variables
+      secrets    = var.secrets
 
        logConfiguration = {
         logDriver = "awslogs"

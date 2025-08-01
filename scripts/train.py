@@ -1,7 +1,9 @@
+import json
 import os
 import numpy as np
 import pandas as pd
 import kagglehub
+import boto3
 from datasets import DatasetDict, Dataset
 from transformers import (
     AutoTokenizer,
@@ -14,6 +16,7 @@ import mlflow
 import mlflow.transformers
 
 from dotenv import load_dotenv
+from botocore.exceptions import ClientError
 
 load_dotenv()
 
@@ -23,8 +26,14 @@ OUTPUT_DIR = "RESULTS"
 MODEL_SAVE_PATH = "MODELS"
 
 MFLOW_SERVER_URL = os.getenv('MFLOW_SERVER_URL')
+SECRET_NAME = os.getenv('SECRET_NAME')
+
 if MFLOW_SERVER_URL is None:
     raise ValueError("MFLOW_SERVER_URL environment variable is not set. Please set it to your MLflow server's public IP or ensure it's in your .env file.")
+
+if SECRET_NAME is None:
+    raise ValueError("SECRET_NAME environment variable is not set. Please provide the name of the AWS Secrets Manager secret to store the model version.")
+
 
 mlflow.set_tracking_uri(MFLOW_SERVER_URL)
 
@@ -64,7 +73,7 @@ def _load_dataset(dataset_name_param: str) -> DatasetDict:
         df_processed = df_movies[['overview', 'title']].dropna().reset_index(drop=True)
        
         df_processed = df_processed.rename(columns={'overview': 'description'})
-        df_processed = df_processed.head(20)
+        df_processed = df_processed.head(3)
 
         print(f"Processed DataFrame has {len(df_processed)} entries after cleaning.")
         print(f"Sample processed data (first 2 entries):\n{df_processed.head(2)}")
@@ -101,9 +110,6 @@ def load_model(model_name: str):
     return model
 
 def tokenize_function(examples):
-   
-   
-
     if "description" not in examples or "title" not in examples:
         raise ValueError("Dataset must contain 'description' and 'title' columns for tokenization.")
 
@@ -122,10 +128,45 @@ def tokenize_function(examples):
     return model_inputs
 
 
+def write_model_version_to_secrets_manager(secret_name: str, model_version: int):
+    """
+    Writes the latest model version to AWS Secrets Manager.
+    
+    Args:
+        secret_name (str): The name of the secret in AWS Secrets Manager.
+        model_version (int): The version number of the newly registered model.
+    """
+    print(f"Attempting to write model version {model_version} to secret: {secret_name}")
+    
+    # Initialize the Secrets Manager client
+    client = boto3.client('secretsmanager')
+
+    try:
+        # Create a JSON object to store the model version
+        secret_value = json.dumps({"latest_model_version": model_version})
+        
+        # Update the secret in Secrets Manager
+        response = client.update_secret(
+            SecretId=secret_name,
+            SecretString=secret_value
+        )
+        print(f"Successfully updated secret '{secret_name}' with new model version: {model_version}")
+        print(response)
+    except ClientError as e:
+        print(f"An AWS client error occurred: {e}")
+        # Specific error handling for common Secrets Manager errors
+        if e.response['Error']['Code'] == 'ResourceNotFoundException':
+            print(f"Error: Secret '{secret_name}' was not found. Please create it first.")
+        elif e.response['Error']['Code'] == 'InternalServiceError':
+            print(f"Error: An internal service error occurred. Please try again later.")
+        else:
+            raise e
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        raise
+
 
 def compute_metrics(eval_pred):
-   
-   
     print("Compute metrics for text generation is not fully implemented. Using default Trainer evaluation.")
     return {}
 
@@ -137,9 +178,6 @@ if __name__ == "__main__":
     tokenizer = load_tokenizer(MODEL_NAME)
     model = load_model(MODEL_NAME)
 
-   
-   
-   
     tokenized_datasets = raw_datasets.map(
         tokenize_function,
         batched=True,
@@ -171,13 +209,9 @@ if __name__ == "__main__":
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
         report_to="none",
-       
-       
         fp16=False,
     )
 
-   
-   
     data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
 
    
@@ -211,14 +245,26 @@ if __name__ == "__main__":
     print("Model and tokenizer saved locally.")
 
    
-    print("Logging model to MLflow...")
-    mlflow.transformers.log_model(
-        transformers_model=MODEL_SAVE_PATH,
-        name="huggingface-model",
-        tokenizer=tokenizer,
-        task="text2text-generation",
-        registered_model_name="MovieTitleGeneratorFlanT5"
-    )
-    print("Model logged to MLflow successfully.")
+    # Log the model to MLflow and get the version
+    print("Logging model to MLflow and retrieving model version...")
+    try:
+        model_info = mlflow.transformers.log_model(
+            transformers_model=MODEL_SAVE_PATH,
+            name="huggingface-model",
+            tokenizer=tokenizer,
+            task="text2text-generation",
+            registered_model_name="MovieTitleGeneratorFlanT5"
+        )
+        print("Model logged to MLflow successfully.")
 
-print("Training script completed and MLflow run finished.")
+        # Get the new model version from the registered model
+        new_model_version = model_info.registered_model_version
+        print(f"The new registered model version is: {new_model_version}")
+        print(model_info)
+
+        # Write the new model version to AWS Secrets Manager
+        write_model_version_to_secrets_manager(SECRET_NAME, new_model_version)
+    except Exception as e:
+        print(f"Error during MLflow model logging or Secrets Manager update: {e}")
+    finally:
+        print("Training script completed and MLflow run finished.")

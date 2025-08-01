@@ -304,6 +304,16 @@ module "ecs_cluster" {
   ecs_cluster_name           = "inference_api_cluster"
 }
 
+data "aws_secretsmanager_secret" "lts_model_version" {
+  provider = aws.primary
+  name = "lts-model-versions"
+}
+
+data "aws_secretsmanager_secret" "latest_model_version" {
+  provider = aws.primary
+  name = "model-versions"
+}
+
 module "inference_api_ecs" {
   source = "./modules/ecs"
   providers = {
@@ -334,7 +344,17 @@ module "inference_api_ecs" {
       name  = "MFLOW_SERVER_URL"
       value = "http://mlflow.csniico.site"
     },
+    {
+      name  = "REGISTERED_MODEL_NAME"
+      value = "MovieTitleGeneratorFlanT5"
+    },
   ]
+  secrets = [
+  {
+    name      = "MODEL_VERSION"
+    valueFrom = data.aws_secretsmanager_secret.lts_model_version.arn
+  }
+]
 }
 
 module "inference_challenger_api_ecs" {
@@ -367,7 +387,17 @@ module "inference_challenger_api_ecs" {
       name  = "MFLOW_SERVER_URL"
       value = "http://mlflow.csniico.site"
     },
+    {
+      name  = "REGISTERED_MODEL_NAME"
+      value = "MovieTitleGeneratorFlanT5"
+    },
   ]
+  secrets = [
+  {
+    name      = "MODEL_VERSION"
+    valueFrom = data.aws_secretsmanager_secret.latest_model_version.arn
+  }
+]
 }
 
 module "inference_subdomain" {

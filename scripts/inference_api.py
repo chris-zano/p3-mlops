@@ -18,12 +18,21 @@ load_dotenv()
 
 # --- Configuration ---
 MFLOW_SERVER_URL = os.getenv('MFLOW_SERVER_URL')
+REGISTERED_MODEL_NAME = os.getenv('REGISTERED_MODEL_NAME') or "MovieTitleGeneratorFlanT5"
+MODEL_VERSION = os.getenv('MODEL_VERSION')
+
 if MFLOW_SERVER_URL is None:
     raise ValueError("MFLOW_SERVER_IP environment variable is not set. Please set it to your MLflow server's public IP or ensure it's in your .env file.")
+
+if MODEL_VERSION is None:
+    raise ValueError("MODEL_VERSION environment variable is not set in your .env file.")
+
+if REGISTERED_MODEL_NAME is None:
+    raise ValueError("REGISTERED_MODEL_NAME environment variable is not set in your .env file.")
+
+
 mlflow.set_tracking_uri(MFLOW_SERVER_URL)
 
-REGISTERED_MODEL_NAME = "MovieTitleGeneratorFlanT5"
-MODEL_VERSION_OR_STAGE = "2"
 
 # --- Global Variables for Models and Data ---
 text_generation_pipeline: Pipeline = None
@@ -109,9 +118,9 @@ async def load_models_and_data_on_startup():
 
     # 1. Load Flan-T5 Model for Title Generation
     print(f"MLFlow Registry URL set to {MFLOW_SERVER_URL}")
-    print(f"Loading model '{REGISTERED_MODEL_NAME}' version/stage '{MODEL_VERSION_OR_STAGE}' from MLflow Registry...")
+    print(f"Loading model '{REGISTERED_MODEL_NAME}' version/stage '{MODEL_VERSION}' from MLflow Registry...")
     try:
-        model_uri = f"models:/{REGISTERED_MODEL_NAME}/{MODEL_VERSION_OR_STAGE}"
+        model_uri = f"models:/{REGISTERED_MODEL_NAME}/{MODEL_VERSION}"
         text_generation_pipeline = mlflow.transformers.load_model(model_uri)
         
         if text_generation_pipeline.device.type == "cuda":

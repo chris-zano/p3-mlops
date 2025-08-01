@@ -22,7 +22,7 @@ test:
 
 run:
 	@echo "Running the application"
-	./$(VENV_DIR)/bin/uvicorn $(APP_FILE):app --host 0.0.0.0 --port 8000 --reload
+	./$(VENV_DIR)/bin/uvicorn scripts/$(APP_FILE):app --host 0.0.0.0 --port 8000 --reload
 
 
 train:

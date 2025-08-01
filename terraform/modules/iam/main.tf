@@ -218,31 +218,44 @@ resource "aws_iam_policy" "challenger_redeployment_policy" {
   description = "IAM policy for Lambda to update ECS service and write logs"
 
   policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect = "Allow",
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ],
-        Resource = "arn:aws:logs:*:*:*"
-      },
-      {
-        Effect = "Allow",
-        Action = [
-          "ecs:UpdateService",
-          "ecs:DescribeServices",
-          "ecs:DescribeTaskDefinition"
-        ],
-        Resource = [
-          "arn:aws:ecs:${var.aws_region}:${var.aws_account_id}:service/${var.ecs_cluster_name}/${var.inference_challenger_ecs_service_name}",
-          "arn:aws:ecs:${var.aws_region}:${var.aws_account_id}:cluster/${var.ecs_cluster_name}"
-        ]
-      }
-    ]
-  })
+  Version = "2012-10-17",
+  Statement = [
+    {
+      Effect = "Allow",
+      Action = [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      Resource = "arn:aws:logs:*:*:*"
+    },
+    {
+      Effect = "Allow",
+      Action = [
+        "ecs:*"
+      ],
+      Resource = [
+        "arn:aws:ecs:${var.aws_region}:${var.aws_account_id}:service/${var.ecs_cluster_name}/${var.inference_challenger_ecs_service_name}",
+        "arn:aws:ecs:${var.aws_region}:${var.aws_account_id}:cluster/${var.ecs_cluster_name}"
+      ]
+    },
+    {
+      Effect = "Allow",
+      Action = [
+        "ecs:*"
+      ],
+      Resource = "*"
+    },
+    {
+      Effect = "Allow",
+      Action = [
+        "iam:*"
+      ],
+      Resource = "*"
+    }
+  ]
+})
+
 }
 
 # Attach the policy to the role
