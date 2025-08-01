@@ -64,3 +64,8 @@ jobs:
 
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Start EC2 Instance
+        run: |
+          aws ec2 start-instances --instance-ids ${{ secrets.TRAIN_INSTANCE_ID }}
+          aws ec2 wait instance-running --instance-ids ${{ secrets.TRAIN_INSTANCE_ID }}

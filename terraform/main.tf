@@ -412,30 +412,30 @@ module "inference_subdomain" {
   record_ttl      = 300
 }
 
-module "ecr_push_lambda" {
-  source = "./modules/lambda"
-  providers = {
-    aws = aws.primary
-  }
-  function_name    = "${var.project_name}-start-ec2-on-ecr-push"
-  handler          = "start_ec2_on_ecr_push.lambda_handler"
-  runtime          = "python3.9"
-  lambda_role_arn  = module.iam_resources.lambda_ec2_starter_role_arn
-  ec2_instance_id  = module.model_train_instance.instance_id
-  aws_region       = var.aws_region
-  source_code_path = module.datasets.lambda_script_path
-  event_rule_arn   = module.ecr_event_bridge.event_bridge_rule_arn
-}
+# module "ecr_push_lambda" {
+#   source = "./modules/lambda"
+#   providers = {
+#     aws = aws.primary
+#   }
+#   function_name    = "${var.project_name}-start-ec2-on-ecr-push"
+#   handler          = "start_ec2_on_ecr_push.lambda_handler"
+#   runtime          = "python3.9"
+#   lambda_role_arn  = module.iam_resources.lambda_ec2_starter_role_arn
+#   ec2_instance_id  = module.model_train_instance.instance_id
+#   aws_region       = var.aws_region
+#   source_code_path = module.datasets.lambda_script_path
+#   event_rule_arn   = module.ecr_event_bridge.event_bridge_rule_arn
+# }
 
-module "ecr_event_bridge" {
-  source = "./modules/event_bridge"
-  providers = {
-    aws = aws.primary
-  }
-  rule_name           = "${var.project_name}-ecr-push-to-start-ec2-rule"
-  ecr_repository_name = module.train_script_repo.name
-  lambda_function_arn = module.ecr_push_lambda.lambda_function_arn
-}
+# module "ecr_event_bridge" {
+#   source = "./modules/event_bridge"
+#   providers = {
+#     aws = aws.primary
+#   }
+#   rule_name           = "${var.project_name}-ecr-push-to-start-ec2-rule"
+#   ecr_repository_name = module.train_script_repo.name
+#   lambda_function_arn = module.ecr_push_lambda.lambda_function_arn
+# }
 
 module "mlflow_subdomain" {
   source = "./modules/route_53"
@@ -449,32 +449,32 @@ module "mlflow_subdomain" {
   record_ttl      = 300
 }
 
-# New Lambda function to redeploy the challenger
-module "redeploys_challenger_lambda" {
-  source = "./modules/lambda_challenger"
-  providers = {
-    aws = aws.primary
-  }
-  function_name    = "${var.project_name}-redeploys-challenger"
-  lambda_role_arn  = module.iam_resources.challenger_redeployment_role_arn
-  ecs_cluster_name = module.ecs_cluster.cluster_name
-  ecs_service_name = var.inference_challenger_ecs_service_name
-  container_name   = "inference-api-challenger"
-  source_code_path = module.datasets.challenger_lambda_script_path
-  event_rule_arn   = module.ecr_challenger_event_bridge.event_bridge_rule_arn
-}
+# # New Lambda function to redeploy the challenger
+# module "redeploys_challenger_lambda" {
+#   source = "./modules/lambda_challenger"
+#   providers = {
+#     aws = aws.primary
+#   }
+#   function_name    = "${var.project_name}-redeploys-challenger"
+#   lambda_role_arn  = module.iam_resources.challenger_redeployment_role_arn
+#   ecs_cluster_name = module.ecs_cluster.cluster_name
+#   ecs_service_name = var.inference_challenger_ecs_service_name
+#   container_name   = "inference-api-challenger"
+#   source_code_path = module.datasets.challenger_lambda_script_path
+#   event_rule_arn   = module.ecr_challenger_event_bridge.event_bridge_rule_arn
+# }
 
-# New EventBridge rule to listen for pushes to the challenger repo
-module "ecr_challenger_event_bridge" {
-  source = "./modules/event_bridge_challenger"
-  providers = {
-    aws = aws.primary
-  }
-  rule_name           = "${var.project_name}-ecr-push-to-redeploys-challenger-rule"
-  ecr_repository_name = module.inference_api_repo.name
-  lambda_function_arn = module.redeploys_challenger_lambda.lambda_function_arn
-  ecr_image_tag = "challenger"
-}
+# # New EventBridge rule to listen for pushes to the challenger repo
+# module "ecr_challenger_event_bridge" {
+#   source = "./modules/event_bridge_challenger"
+#   providers = {
+#     aws = aws.primary
+#   }
+#   rule_name           = "${var.project_name}-ecr-push-to-redeploys-challenger-rule"
+#   ecr_repository_name = module.inference_api_repo.name
+#   lambda_function_arn = module.redeploys_challenger_lambda.lambda_function_arn
+#   ecr_image_tag = "challenger"
+# }
 
 resource "local_file" "apply_outputs" {
   filename = "outputs.txt"
