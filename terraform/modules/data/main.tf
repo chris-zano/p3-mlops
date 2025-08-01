@@ -18,6 +18,15 @@ data "template_file" "model_train_user_data" {
   }
 }
 
+data "template_file" "model_evaluate_user_data" {
+  template = file("${path.module}/templates/model_evaluate_user_data.sh")
+  vars = {
+    ecr_image = var.ecr_repo_name
+    mflow_server_ip = var.mflow_server_ip
+  }
+}
+
+
 data "aws_ami_ids" "ubuntu_24" {
   owners = ["099720109477"]
 

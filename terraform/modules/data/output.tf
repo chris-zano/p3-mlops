@@ -19,3 +19,7 @@ output "challenger_lambda_script_path" {
   description = "The path to the Lambda Python script within the module."
   value       = "${path.module}/templates/redeploy_challenger.py"
 }
+
+output "model_evaluate_user_data" {
+  value = data.template_file.model_evaluate_user_data.rendered
+}

@@ -190,13 +190,13 @@ module "iam_resources" {
   providers = {
     aws = aws.primary
   }
-  mlflow_buckets_arns = [module.mlflow_s3_bucket.s3_bucket_arn]
-  lambda_role_name    = "${var.project_name}-ec2-starter-lambda-role"
-  ec2_instance_id     = module.model_train_instance.instance_id
-  aws_region          = var.aws_region
-  aws_account_id      = var.account_id
-  project_name = var.project_name
-  ecs_cluster_name               = module.ecs_cluster.cluster_name
+  mlflow_buckets_arns                   = [module.mlflow_s3_bucket.s3_bucket_arn]
+  lambda_role_name                      = "${var.project_name}-ec2-starter-lambda-role"
+  ec2_instance_id                       = module.model_train_instance.instance_id
+  aws_region                            = var.aws_region
+  aws_account_id                        = var.account_id
+  project_name                          = var.project_name
+  ecs_cluster_name                      = module.ecs_cluster.cluster_name
   inference_challenger_ecs_service_name = var.inference_challenger_ecs_service_name
 }
 
@@ -213,7 +213,7 @@ module "mlflow_instance" {
   user_data            = module.datasets.mlflow_user_data
   iam_instance_profile = module.iam_resources.mlflow_instance_profile_name
   tags = {
-    "Name" = "mlflow-instance"
+    "Name"     = "mlflow-instance"
     "Schedule" = "Workday"
   }
 }
@@ -240,6 +240,24 @@ module "model_train_instance" {
   security_group_ids   = [module.model_training_security_groups.sg_id]
   subnet_id            = module.project_vpc.public_subnet_ids[0]
   user_data            = module.datasets.model_train_user_data
+  iam_instance_profile = module.iam_resources.model_training_role
+  tags = {
+    "Name" = "model-training-instance"
+  }
+}
+
+module "model_evaluate_instance" {
+  source = "./modules/ec2"
+  providers = {
+    aws = aws.primary
+  }
+  ami_id        = module.datasets.ubuntu_ami_id
+  instance_type = "m5.2xlarge"
+  # instance_type        = "t2.micro"
+  key_name             = "mlops"
+  security_group_ids   = [module.model_training_security_groups.sg_id]
+  subnet_id            = module.project_vpc.public_subnet_ids[0]
+  user_data            = module.datasets.model_evaluate_user_data
   iam_instance_profile = module.iam_resources.model_training_role
   tags = {
     "Name" = "model-training-instance"
@@ -306,12 +324,12 @@ module "ecs_cluster" {
 
 data "aws_secretsmanager_secret" "lts_model_version" {
   provider = aws.primary
-  name = "lts-model-versions"
+  name     = "lts-model-versions"
 }
 
 data "aws_secretsmanager_secret" "latest_model_version" {
   provider = aws.primary
-  name = "model-versions"
+  name     = "model-versions"
 }
 
 module "inference_api_ecs" {
@@ -350,11 +368,11 @@ module "inference_api_ecs" {
     },
   ]
   secrets = [
-  {
-    name      = "MODEL_VERSION"
-    valueFrom = data.aws_secretsmanager_secret.lts_model_version.arn
-  }
-]
+    {
+      name      = "MODEL_VERSION"
+      valueFrom = data.aws_secretsmanager_secret.lts_model_version.arn
+    }
+  ]
 }
 
 module "inference_challenger_api_ecs" {
@@ -393,11 +411,11 @@ module "inference_challenger_api_ecs" {
     },
   ]
   secrets = [
-  {
-    name      = "MODEL_VERSION"
-    valueFrom = data.aws_secretsmanager_secret.latest_model_version.arn
-  }
-]
+    {
+      name      = "MODEL_VERSION"
+      valueFrom = data.aws_secretsmanager_secret.latest_model_version.arn
+    }
+  ]
 }
 
 module "inference_subdomain" {
@@ -449,32 +467,43 @@ module "mlflow_subdomain" {
   record_ttl      = 300
 }
 
-# # New Lambda function to redeploy the challenger
-# module "redeploys_challenger_lambda" {
-#   source = "./modules/lambda_challenger"
-#   providers = {
-#     aws = aws.primary
-#   }
-#   function_name    = "${var.project_name}-redeploys-challenger"
-#   lambda_role_arn  = module.iam_resources.challenger_redeployment_role_arn
-#   ecs_cluster_name = module.ecs_cluster.cluster_name
-#   ecs_service_name = var.inference_challenger_ecs_service_name
-#   container_name   = "inference-api-challenger"
-#   source_code_path = module.datasets.challenger_lambda_script_path
-#   event_rule_arn   = module.ecr_challenger_event_bridge.event_bridge_rule_arn
-# }
 
-# # New EventBridge rule to listen for pushes to the challenger repo
-# module "ecr_challenger_event_bridge" {
-#   source = "./modules/event_bridge_challenger"
-#   providers = {
-#     aws = aws.primary
-#   }
-#   rule_name           = "${var.project_name}-ecr-push-to-redeploys-challenger-rule"
-#   ecr_repository_name = module.inference_api_repo.name
-#   lambda_function_arn = module.redeploys_challenger_lambda.lambda_function_arn
-#   ecr_image_tag = "challenger"
-# }
+module "ec2_stopped_trigger" {
+  providers = {
+    aws = aws.primary
+  }
+  source               = "./modules/evaluate_trigger"
+  stop_instance_id     = module.model_evaluate_instance.instance_id
+  start_instance_id    = module.model_train_instance.instance_id
+  lambda_function_name = "ec2-stopped-notifier"
+}
+
+# New Lambda function to redeploy the challenger
+module "redeploys_challenger_lambda" {
+  source = "./modules/lambda_challenger"
+  providers = {
+    aws = aws.primary
+  }
+  function_name    = "${var.project_name}-redeploys-challenger"
+  lambda_role_arn  = module.iam_resources.challenger_redeployment_role_arn
+  ecs_cluster_name = module.ecs_cluster.cluster_name
+  ecs_service_name = var.inference_challenger_ecs_service_name
+  container_name   = "inference-api-challenger"
+  source_code_path = module.datasets.challenger_lambda_script_path
+  event_rule_arn   = module.ecr_challenger_event_bridge.event_bridge_rule_arn
+}
+
+# New EventBridge rule to listen for pushes to the challenger repo
+module "ecr_challenger_event_bridge" {
+  source = "./modules/event_bridge_challenger"
+  providers = {
+    aws = aws.primary
+  }
+  rule_name           = "${var.project_name}-ecr-push-to-redeploys-challenger-rule"
+  ecr_repository_name = module.inference_api_repo.name
+  lambda_function_arn = module.redeploys_challenger_lambda.lambda_function_arn
+  ecr_image_tag = "challenger"
+}
 
 resource "local_file" "apply_outputs" {
   filename = "outputs.txt"
