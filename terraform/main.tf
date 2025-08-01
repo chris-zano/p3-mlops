@@ -412,30 +412,30 @@ module "inference_subdomain" {
   record_ttl      = 300
 }
 
-# module "ecr_push_lambda" {
-#   source = "./modules/lambda"
-#   providers = {
-#     aws = aws.primary
-#   }
-#   function_name    = "${var.project_name}-start-ec2-on-ecr-push"
-#   handler          = "start_ec2_on_ecr_push.lambda_handler"
-#   runtime          = "python3.9"
-#   lambda_role_arn  = module.iam_resources.lambda_ec2_starter_role_arn
-#   ec2_instance_id  = module.model_train_instance.instance_id
-#   aws_region       = var.aws_region
-#   source_code_path = module.datasets.lambda_script_path
-#   event_rule_arn   = module.ecr_event_bridge.event_bridge_rule_arn
-# }
+module "ecr_push_lambda" {
+  source = "./modules/lambda"
+  providers = {
+    aws = aws.primary
+  }
+  function_name    = "${var.project_name}-start-ec2-on-ecr-push"
+  handler          = "start_ec2_on_ecr_push.lambda_handler"
+  runtime          = "python3.9"
+  lambda_role_arn  = module.iam_resources.lambda_ec2_starter_role_arn
+  ec2_instance_id  = module.model_train_instance.instance_id
+  aws_region       = var.aws_region
+  source_code_path = module.datasets.lambda_script_path
+  event_rule_arn   = module.ecr_event_bridge.event_bridge_rule_arn
+}
 
-# module "ecr_event_bridge" {
-#   source = "./modules/event_bridge"
-#   providers = {
-#     aws = aws.primary
-#   }
-#   rule_name           = "${var.project_name}-ecr-push-to-start-ec2-rule"
-#   ecr_repository_name = module.train_script_repo.name
-#   lambda_function_arn = module.ecr_push_lambda.lambda_function_arn
-# }
+module "ecr_event_bridge" {
+  source = "./modules/event_bridge"
+  providers = {
+    aws = aws.primary
+  }
+  rule_name           = "${var.project_name}-ecr-push-to-start-ec2-rule"
+  ecr_repository_name = module.train_script_repo.name
+  lambda_function_arn = module.ecr_push_lambda.lambda_function_arn
+}
 
 module "mlflow_subdomain" {
   source = "./modules/route_53"

@@ -18,7 +18,7 @@ lint:
 
 test:
 	@echo "Running pytest"
-	@echo "Tests run"
+	PYTHONPATH=. pytest -v
 
 run:
 	@echo "Running the application"

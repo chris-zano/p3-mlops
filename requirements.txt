@@ -21,3 +21,4 @@ nuitka
 evaluate
 rouge_score
 boto3
+pytest
